@@ -555,8 +555,8 @@ export const clearActiveAuthSession = clearAuthSession;
  * Schema metadata for verification and developer transparency.
  */
 export const DATABASE_SCHEMA_METADATA = {
-  version: '3.0.0',
-  engine: 'Relational Model with Client/Storage Persistence',
+  version: '3.1.0',
+  engine: 'Google Firebase Cloud Firestore (Live Multi-Device Real-Time Sync)',
   encryption: 'bcrypt (Blowfish cipher, 10 rounds salt)',
   roles: [
     {

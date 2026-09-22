@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
   X, 
   User, 
@@ -7,7 +7,6 @@ import {
   Check, 
   Package, 
   Heart, 
-  SlidersHorizontal, 
   Globe, 
   Share2, 
   QrCode, 
@@ -18,23 +17,15 @@ import {
   ShoppingBag,
   MessageCircle,
   Send,
-  Lock,
-  LogOut,
   Zap,
   ArrowRight,
   Truck,
   Search,
   Clock,
-  AlertCircle,
-  Edit3,
-  RotateCcw,
-  Link as LinkIcon,
-  ShieldCheck,
-  KeyRound
+  AlertCircle
 } from 'lucide-react';
 import { CustomerAccount, Order, Product } from '../types';
 import { formatCurrency } from '../utils/storage';
-import { canUserPerform } from '../utils/rbac';
 
 interface UserAccountModalProps {
   isOpen: boolean;
@@ -47,12 +38,7 @@ interface UserAccountModalProps {
   onAddToCart: (product: Product) => void;
   onBuyNow: (product: Product) => void;
   onRemoveFromWishlist: (productId: string) => void;
-  onOpenAdminLogin: () => void;
-  isAdminAuthenticated: boolean;
-  onOpenAdminDashboard: () => void;
-  onLogoutAdmin: () => void;
   websiteUrl: string;
-  onUpdateWebsiteUrl?: (newUrl: string) => void;
 }
 
 export const UserAccountModal: React.FC<UserAccountModalProps> = ({
@@ -66,12 +52,7 @@ export const UserAccountModal: React.FC<UserAccountModalProps> = ({
   onAddToCart,
   onBuyNow,
   onRemoveFromWishlist,
-  onOpenAdminLogin,
-  isAdminAuthenticated,
-  onOpenAdminDashboard,
-  onLogoutAdmin,
   websiteUrl,
-  onUpdateWebsiteUrl,
 }) => {
   const [activeTab, setActiveTab] = useState<'profile' | 'orders' | 'tracking' | 'wishlist' | 'website-link'>(
     (initialTab as any) || 'profile'
@@ -85,16 +66,6 @@ export const UserAccountModal: React.FC<UserAccountModalProps> = ({
 
   // Customer form state
   const [formData, setFormData] = useState<CustomerAccount>({ ...customerAccount });
-
-  // Custom Website URL Edit State
-  const [editableUrl, setEditableUrl] = useState(websiteUrl || '');
-  const [urlSaveSuccess, setUrlSaveSuccess] = useState(false);
-  const [urlError, setUrlError] = useState('');
-  const [isEditingUrlSection, setIsEditingUrlSection] = useState(false);
-
-  useEffect(() => {
-    setEditableUrl(websiteUrl || '');
-  }, [websiteUrl]);
 
   if (!isOpen) return null;
 
@@ -129,70 +100,6 @@ export const UserAccountModal: React.FC<UserAccountModalProps> = ({
     setTimeout(() => setSaveSuccess(false), 2500);
   };
 
-  const handleSaveCustomUrl = (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    setUrlError('');
-
-    if (!isAdminAuthenticated) {
-      setUrlError('Access Denied: Only the store administrator can edit the website URL link.');
-      return;
-    }
-
-    let trimmed = editableUrl.trim();
-    if (!trimmed) {
-      setUrlError('Please enter a valid website link.');
-      return;
-    }
-
-    if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
-      trimmed = `https://${trimmed}`;
-      setEditableUrl(trimmed);
-    }
-
-    try {
-      new URL(trimmed);
-    } catch {
-      setUrlError('Invalid URL format. Please enter a valid web link (e.g. https://yourdomain.com).');
-      return;
-    }
-
-    if (onUpdateWebsiteUrl) {
-      onUpdateWebsiteUrl(trimmed);
-      setUrlSaveSuccess(true);
-      setTimeout(() => setUrlSaveSuccess(false), 3000);
-    }
-  };
-
-  const handleUseBrowserUrl = () => {
-    if (!isAdminAuthenticated) {
-      setUrlError('Access Denied: Only the store administrator can edit the website URL link.');
-      return;
-    }
-    if (typeof window !== 'undefined') {
-      const browserUrl = window.location.href;
-      setEditableUrl(browserUrl);
-      if (onUpdateWebsiteUrl) {
-        onUpdateWebsiteUrl(browserUrl);
-        setUrlSaveSuccess(true);
-        setTimeout(() => setUrlSaveSuccess(false), 3000);
-      }
-    }
-  };
-
-  const handleResetDefaultUrl = () => {
-    if (!isAdminAuthenticated) {
-      setUrlError('Access Denied: Only the store administrator can edit the website URL link.');
-      return;
-    }
-    const fallback = typeof window !== 'undefined' ? window.location.origin : 'https://beautysphereshop.com';
-    setEditableUrl(fallback);
-    if (onUpdateWebsiteUrl) {
-      onUpdateWebsiteUrl(fallback);
-      setUrlSaveSuccess(true);
-      setTimeout(() => setUrlSaveSuccess(false), 3000);
-    }
-  };
-
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 animate-fadeIn">
       <div 
@@ -202,36 +109,21 @@ export const UserAccountModal: React.FC<UserAccountModalProps> = ({
         {/* Left Sidebar Navigation */}
         <div className="md:w-64 bg-white border-r border-[#EAE3D8] p-5 flex flex-col justify-between">
           <div>
-            {/* Customer / Admin Profile Header with RBAC indicator */}
+            {/* Customer Profile Header */}
             <div className="pb-5 border-b border-[#F0EAE1] mb-4">
-              <div className={`w-12 h-12 rounded-full flex items-center justify-center font-serif-luxury text-xl mb-2 shadow-xs ${
-                isAdminAuthenticated ? 'bg-[#1F1B18] text-[#D4AF37]' : 'bg-[#FAF2E6] text-[#7A5B28]'
-              }`}>
-                {isAdminAuthenticated ? 'A' : (formData.fullName ? formData.fullName.charAt(0).toUpperCase() : 'C')}
+              <div className="w-12 h-12 rounded-full flex items-center justify-center font-serif-luxury text-xl mb-2 shadow-xs bg-[#FAF2E6] text-[#7A5B28]">
+                {formData.fullName ? formData.fullName.charAt(0).toUpperCase() : 'C'}
               </div>
               <h3 className="font-serif-luxury text-base font-medium text-[#1A1817] leading-tight truncate">
-                {isAdminAuthenticated ? 'Akon MD' : (formData.fullName || 'Valued Shopper')}
+                {formData.fullName || 'Valued Shopper'}
               </h3>
               <p className="text-[11px] text-[#7A7066] truncate">
-                {isAdminAuthenticated ? 'akonmd12@gmail.com' : (formData.email || 'Quick guest checkout active')}
+                {formData.email || 'Quick guest checkout active'}
               </p>
               
-              <div className={`mt-2 inline-flex items-center gap-1.5 px-2.5 py-0.5 text-[10px] uppercase tracking-wider font-semibold rounded-full border ${
-                isAdminAuthenticated 
-                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
-                  : 'bg-[#F2EDE7] text-[#5C534B] border-[#E0D7CC]'
-              }`}>
-                {isAdminAuthenticated ? (
-                  <>
-                    <ShieldCheck className="w-3 h-3 text-emerald-600" />
-                    <span>Verified Admin</span>
-                  </>
-                ) : (
-                  <>
-                    <User className="w-3 h-3 text-[#8C6B3E]" />
-                    <span>Public Customer</span>
-                  </>
-                )}
+              <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-0.5 text-[10px] uppercase tracking-wider font-semibold rounded-full border bg-[#F2EDE7] text-[#5C534B] border-[#E0D7CC]">
+                <User className="w-3 h-3 text-[#8C6B3E]" />
+                <span>Boutique Client</span>
               </div>
             </div>
 
@@ -301,18 +193,11 @@ export const UserAccountModal: React.FC<UserAccountModalProps> = ({
               >
                 <div className="flex items-center gap-2.5">
                   <Package className="w-4 h-4 text-[#8C6B3E]" />
-                  <span>Customer Orders List</span>
+                  <span>My Orders & History</span>
                 </div>
-                {isAdminAuthenticated ? (
-                  orders.length > 0 ? (
-                    <span className="text-[10px] font-bold bg-[#D4AF37] text-[#1F1B18] px-2 py-0.5 rounded-full">
-                      {orders.length}
-                    </span>
-                  ) : null
-                ) : (
-                  <span className="text-[9px] uppercase font-bold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded flex items-center gap-1">
-                    <Lock className="w-2.5 h-2.5" />
-                    Admin
+                {orders.length > 0 && (
+                  <span className="text-[10px] font-bold bg-[#D4AF37] text-[#1F1B18] px-2 py-0.5 rounded-full">
+                    {orders.length}
                   </span>
                 )}
               </button>
@@ -332,57 +217,6 @@ export const UserAccountModal: React.FC<UserAccountModalProps> = ({
                 </div>
               </button>
             </div>
-          </div>
-
-          {/* Admin Access Panel at bottom */}
-          <div className="pt-4 border-t border-[#F0EAE1] mt-4">
-            {isAdminAuthenticated ? (
-              <div className="p-3 bg-[#FAF5EE] border border-[#DDD3C7] rounded-xl space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider flex items-center gap-1">
-                    ● Admin Active
-                  </span>
-                  <button
-                    onClick={() => {
-                      onLogoutAdmin();
-                      onClose();
-                    }}
-                    className="text-[10px] text-rose-700 hover:underline flex items-center gap-0.5"
-                    title="Log out of admin session"
-                  >
-                    <LogOut className="w-3 h-3" />
-                    <span>Log Out</span>
-                  </button>
-                </div>
-                <button
-                  onClick={() => {
-                    onClose();
-                    onOpenAdminDashboard();
-                  }}
-                  className="w-full py-2 px-3 bg-[#1F1B18] hover:bg-[#342F2A] text-white text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 transition-all"
-                >
-                  <SlidersHorizontal className="w-3.5 h-3.5 text-[#D4AF37]" />
-                  <span>Open Admin Portal</span>
-                </button>
-              </div>
-            ) : (
-              <div className="p-3 bg-[#FAF8F5] border border-[#EAE3D8] rounded-xl text-center space-y-1.5">
-                <p className="text-[10px] text-[#7A7066] leading-tight">
-                  Are you the boutique administrator?
-                </p>
-                <button
-                  id="admin-login-trigger-from-account"
-                  onClick={() => {
-                    onClose();
-                    onOpenAdminLogin();
-                  }}
-                  className="w-full py-2 px-2 bg-[#EFE8DF] hover:bg-[#E2D8CD] border border-[#D5C9BD] text-[#1F1B18] text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 transition-all"
-                >
-                  <Lock className="w-3.5 h-3.5 text-[#8C6B3E]" />
-                  <span>Admin Login (Password)</span>
-                </button>
-              </div>
-            )}
           </div>
         </div>
 
@@ -559,140 +393,99 @@ export const UserAccountModal: React.FC<UserAccountModalProps> = ({
             </form>
           )}
 
-          {/* TAB 2: CUSTOMER ORDERS - STRICTLY ENFORCED BY RBAC */}
+          {/* TAB 2: MY ORDERS & HISTORY */}
           {activeTab === 'orders' && (
-            !isAdminAuthenticated ? (
-              <div id="rbac-orders-restricted-view" className="p-8 bg-white border border-[#E8DFD3] rounded-2xl text-center space-y-4 shadow-sm animate-fadeIn">
-                <div className="w-16 h-16 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 flex items-center justify-center mx-auto shadow-xs">
-                  <Lock className="w-8 h-8 text-amber-700" />
-                </div>
-
-                <div className="max-w-md mx-auto space-y-2">
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-50 text-red-700 border border-red-200 text-[10px] font-bold uppercase tracking-wider rounded-full">
-                    <ShieldCheck className="w-3.5 h-3.5" />
-                    <span>Role-Based Access Control (RBAC) Active</span>
-                  </span>
-                  <h3 className="font-serif-luxury text-xl font-bold text-[#1A1817]">
-                    Customer Orders List: Verified Admin Only
-                  </h3>
-                  <p className="text-xs text-[#6B6158] leading-relaxed">
-                    Under the boutique security architecture, customer order records contain sensitive customer addresses, phone numbers, and transaction logs. Access is strictly limited to the verified store administrator (<strong>Akon MD</strong>).
-                  </p>
-                  <p className="text-xs text-[#8C8075] bg-[#FAF8F5] p-3 rounded-xl border border-[#EAE3D8]">
-                    Public customers can freely browse products and submit orders through the quick checkout form.
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-[#F0EAE1] gap-2">
+                <div>
+                  <h3 className="font-serif-luxury text-lg text-[#1A1817]">My Orders & History</h3>
+                  <p className="text-xs text-[#7A7169]">
+                    Review your order items, delivery addresses, and real-time logistics status.
                   </p>
                 </div>
-
-                <div className="pt-3 flex flex-col sm:flex-row items-center justify-center gap-2.5">
-                  <button
-                    id="rbac-admin-login-button"
-                    onClick={() => {
-                      onClose();
-                      onOpenAdminLogin();
-                    }}
-                    className="w-full sm:w-auto px-5 py-2.5 bg-[#1F1B18] hover:bg-[#38312B] text-white text-xs font-semibold rounded-xl flex items-center justify-center gap-2 transition-all shadow-sm cursor-pointer"
-                  >
-                    <KeyRound className="w-4 h-4 text-[#D4AF37]" />
-                    <span>Admin Login to View Orders</span>
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('profile')}
-                    className="w-full sm:w-auto px-4 py-2.5 bg-[#F5EFE9] hover:bg-[#EAE3D8] text-[#4A423A] text-xs font-semibold rounded-xl transition-all"
-                  >
-                    Back to Customer Profile
-                  </button>
-                </div>
+                <button
+                  onClick={() => setActiveTab('tracking')}
+                  className="px-3 py-1.5 bg-[#FAF5EE] hover:bg-[#F0E6D8] border border-[#DDD3C7] text-[#1F1B18] text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer self-start sm:self-auto"
+                >
+                  <Search className="w-3.5 h-3.5 text-[#D4AF37]" />
+                  <span>Lookup by Tracking #</span>
+                </button>
               </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2">
-                    <ShieldCheck className="w-4 h-4 text-emerald-700" />
-                    <span className="font-semibold text-emerald-900">
-                      Administrator Access • {orders.length} Total Customer Orders Logged
-                    </span>
-                  </div>
+
+              {orders.length === 0 ? (
+                <div className="p-8 bg-white border border-[#E8DFD3] rounded-xl text-center text-[#736B63] space-y-3">
+                  <Package className="w-10 h-10 mx-auto text-[#B8ADA2]" />
+                  <p className="font-serif-luxury text-base text-[#1A1817]">No Orders Placed Yet</p>
+                  <p className="text-xs text-[#8C8075] max-w-sm mx-auto">
+                    Customer orders placed through our checkout will appear here with live tracking.
+                  </p>
                   <button
-                    onClick={() => {
-                      onClose();
-                      onOpenAdminDashboard();
-                    }}
-                    className="text-[11px] font-bold text-emerald-900 hover:underline flex items-center gap-1"
+                    onClick={() => setActiveTab('tracking')}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#1F1B18] hover:bg-[#38312B] text-white text-xs font-semibold rounded-xl transition-all cursor-pointer"
                   >
-                    <span>Full Orders Manager →</span>
+                    <Truck className="w-3.5 h-3.5 text-[#D4AF37]" />
+                    <span>Track Order by Number</span>
                   </button>
                 </div>
-
-                {orders.length === 0 ? (
-                  <div className="p-8 bg-white border border-[#E8DFD3] rounded-xl text-center text-[#736B63]">
-                    <Package className="w-10 h-10 mx-auto text-[#B8ADA2] mb-2" />
-                    <p className="font-serif-luxury text-base text-[#1A1817]">No Orders Placed Yet</p>
-                    <p className="text-xs text-[#8C8075] mt-1 max-w-sm mx-auto">
-                      Customer orders submitted via the quick checkout will be logged here for the verified admin.
-                    </p>
-                  </div>
-                ) : (
-                  orders.map((order) => (
-                    <div key={order.id} className="bg-white border border-[#E8DFD3] rounded-xl p-5 shadow-2xs space-y-3">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-[#F0EAE1] gap-2">
-                        <div>
-                          <span className="text-[10px] uppercase font-semibold text-[#8C8075] tracking-wider">
-                            Tracking Reference
-                          </span>
-                          <p className="font-mono text-sm font-bold text-[#1A1817]">{order.orderNumber}</p>
-                          <p className="text-[11px] text-[#7A7169]">
-                            {new Date(order.createdAt).toLocaleDateString('en-US', {
-                              year: 'numeric',
-                              month: 'short',
-                              day: 'numeric',
-                            })}
-                          </p>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800">
-                            ● {order.status}
-                          </span>
-                          <span className="text-sm font-bold text-[#1A1817]">{formatCurrency(order.total)}</span>
-                        </div>
+              ) : (
+                orders.map((order) => (
+                  <div key={order.id} className="bg-white border border-[#E8DFD3] rounded-xl p-5 shadow-2xs space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-[#F0EAE1] gap-2">
+                      <div>
+                        <span className="text-[10px] uppercase font-semibold text-[#8C8075] tracking-wider">
+                          Tracking Reference
+                        </span>
+                        <p className="font-mono text-sm font-bold text-[#1A1817]">{order.orderNumber}</p>
+                        <p className="text-[11px] text-[#7A7169]">
+                          {new Date(order.createdAt).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                          })}
+                        </p>
                       </div>
 
-                      <div className="space-y-2">
-                        {order.items.map((item, idx) => (
-                          <div key={idx} className="flex items-center justify-between text-xs">
-                            <span className="text-[#3A332E]">
-                              {item.quantity}x {item.productName} ({item.producer})
-                            </span>
-                            <span className="font-medium text-[#1A1817]">
-                              {formatCurrency(item.price * item.quantity)}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-
-                      <div className="pt-2 border-t border-[#F0EAE1] flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px] text-[#786E64]">
-                        <div>
-                          <span>Customer: <strong>{order.customer.fullName}</strong> ({order.customer.phone})</span>
-                          <span className="mx-1.5">•</span>
-                          <span>Address: {order.customer.address}, {order.customer.city}</span>
-                        </div>
-                        <button
-                          onClick={() => {
-                            setSearchedTrackingOrder(order);
-                            setTrackingNumberInput(order.orderNumber);
-                            setActiveTab('tracking');
-                          }}
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-semibold rounded-md transition-colors text-xs self-start sm:self-auto"
-                        >
-                          <Truck className="w-3.5 h-3.5" />
-                          <span>Track Status</span>
-                        </button>
+                      <div className="flex items-center gap-2">
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800">
+                          ● {order.status}
+                        </span>
+                        <span className="text-sm font-bold text-[#1A1817]">{formatCurrency(order.total)}</span>
                       </div>
                     </div>
-                  ))
-                )}
-              </div>
-            )
+
+                    <div className="space-y-2">
+                      {order.items.map((item, idx) => (
+                        <div key={idx} className="flex items-center justify-between text-xs">
+                          <span className="text-[#3A332E]">
+                            {item.quantity}x {item.productName} ({item.producer})
+                          </span>
+                          <span className="font-medium text-[#1A1817]">
+                            {formatCurrency(item.price * item.quantity)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="pt-2 border-t border-[#F0EAE1] flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px] text-[#786E64]">
+                      <div>
+                        <span>Destination: {order.customer.address}, {order.customer.city}</span>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setSearchedTrackingOrder(order);
+                          setTrackingNumberInput(order.orderNumber);
+                          setActiveTab('tracking');
+                        }}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-semibold rounded-md transition-colors text-xs self-start sm:self-auto cursor-pointer"
+                      >
+                        <Truck className="w-3.5 h-3.5" />
+                        <span>Track Status</span>
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           )}
 
           {/* TAB: ORDER STATUS TRACKING */}
@@ -748,10 +541,10 @@ export const UserAccountModal: React.FC<UserAccountModalProps> = ({
                   </button>
                 </form>
 
-                {/* Quick select from recent orders if admin */}
-                {isAdminAuthenticated && orders.length > 0 && (
+                {/* Quick select from recent orders */}
+                {orders.length > 0 && (
                   <div className="pt-2 border-t border-gray-100 flex flex-wrap items-center gap-2 text-xs">
-                    <span className="text-gray-500 text-[11px]">Admin Quick Select:</span>
+                    <span className="text-gray-500 text-[11px]">Recent Orders:</span>
                     {orders.slice(0, 4).map((ord) => (
                       <button
                         key={ord.id}
@@ -761,7 +554,7 @@ export const UserAccountModal: React.FC<UserAccountModalProps> = ({
                           setSearchedTrackingOrder(ord);
                           setTrackSearched(true);
                         }}
-                        className={`px-2.5 py-1 rounded-lg border text-xs font-mono transition-all ${
+                        className={`px-2.5 py-1 rounded-lg border text-xs font-mono transition-all cursor-pointer ${
                           searchedTrackingOrder?.id === ord.id
                             ? 'bg-emerald-50 border-emerald-500 text-emerald-800 font-bold'
                             : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100'
@@ -1064,28 +857,6 @@ export const UserAccountModal: React.FC<UserAccountModalProps> = ({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-[#F2EDE7]">
-                  {isAdminAuthenticated ? (
-                    <button
-                      onClick={() => setIsEditingUrlSection(!isEditingUrlSection)}
-                      className="px-3 py-1.5 bg-[#FAF5EE] hover:bg-[#F0E6D8] border border-[#DDD3C7] text-[#2C2723] text-xs font-medium rounded-lg flex items-center gap-1.5 transition-all cursor-pointer"
-                    >
-                      <Edit3 className="w-3.5 h-3.5 text-[#8C6B3E]" />
-                      <span>{isEditingUrlSection ? 'Hide URL Editor' : 'Edit URL Link'}</span>
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => {
-                        onClose();
-                        onOpenAdminLogin();
-                      }}
-                      className="px-3 py-1.5 bg-[#FAF5EE] hover:bg-[#F0E6D8] border border-[#DDD3C7] text-[#2C2723] text-xs font-medium rounded-lg flex items-center gap-1.5 transition-all cursor-pointer"
-                      title="Only the boutique administrator can change the store link"
-                    >
-                      <Lock className="w-3.5 h-3.5 text-amber-700" />
-                      <span>Edit URL (Admin Only)</span>
-                    </button>
-                  )}
-
                   <button
                     onClick={handleShareNative}
                     className="px-3 py-1.5 bg-[#FAF5EE] hover:bg-[#F0E6D8] border border-[#DDD3C7] text-[#2C2723] text-xs font-medium rounded-lg flex items-center gap-1.5 transition-all cursor-pointer"
@@ -1116,116 +887,6 @@ export const UserAccountModal: React.FC<UserAccountModalProps> = ({
                   </div>
                 )}
               </div>
-
-              {/* STORE WEBSITE URL SECTION - ADMIN RESTRICTED */}
-              {isAdminAuthenticated ? (
-                <div className="bg-white border border-[#E8DFD3] rounded-2xl p-5 shadow-2xs space-y-4">
-                  <div className="flex items-center justify-between pb-3 border-b border-[#F0EAE1]">
-                    <div>
-                      <h3 className="text-xs uppercase font-bold tracking-[0.18em] text-[#1A1817] flex items-center gap-2">
-                        <Edit3 className="w-4 h-4 text-amber-600" />
-                        <span>Edit Website URL Link (Admin Authorized)</span>
-                      </h3>
-                      <p className="text-xs text-[#7A7169] mt-0.5">
-                        You are logged in as Store Administrator. Changes update across all share buttons, barcodes, and receipts.
-                      </p>
-                    </div>
-                    <span className="px-2 py-0.5 bg-emerald-50 text-emerald-800 text-[10px] font-bold uppercase rounded border border-emerald-200 flex items-center gap-1">
-                      <ShieldCheck className="w-3 h-3 text-emerald-600" />
-                      <span>Admin Mode</span>
-                    </span>
-                  </div>
-
-                  {urlSaveSuccess && (
-                    <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs flex items-center gap-2 animate-fadeIn">
-                      <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-                      <span>Website link updated and saved successfully!</span>
-                    </div>
-                  )}
-
-                  {urlError && (
-                    <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs flex items-center gap-2 animate-fadeIn">
-                      <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-                      <span>{urlError}</span>
-                    </div>
-                  )}
-
-                  <form onSubmit={handleSaveCustomUrl} className="space-y-3">
-                    <div>
-                      <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-700 mb-1.5">
-                        Custom Website URL / Domain
-                      </label>
-                      <div className="relative">
-                        <LinkIcon className="w-4 h-4 text-gray-400 absolute left-3.5 top-3" />
-                        <input
-                          id="account-custom-url-input"
-                          type="text"
-                          value={editableUrl}
-                          onChange={(e) => setEditableUrl(e.target.value)}
-                          placeholder="e.g. https://munnaofficial.com or your domain"
-                          className="w-full pl-10 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none focus:bg-white focus:ring-2 focus:ring-amber-500/20 focus:border-[#D4AF37] font-mono text-gray-900"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={handleUseBrowserUrl}
-                          className="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg text-[11px] font-medium transition-colors flex items-center gap-1 cursor-pointer"
-                        >
-                          <Sparkles className="w-3 h-3 text-amber-600" />
-                          <span>Use Browser URL</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleResetDefaultUrl}
-                          className="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg text-[11px] font-medium transition-colors flex items-center gap-1 cursor-pointer"
-                        >
-                          <RotateCcw className="w-3 h-3 text-gray-500" />
-                          <span>Reset Default</span>
-                        </button>
-                      </div>
-
-                      <button
-                        id="save-account-custom-url-btn"
-                        type="submit"
-                        className="px-4 py-2 bg-[#1F1B18] hover:bg-[#38312A] text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
-                      >
-                        <Check className="w-3.5 h-3.5 text-[#D4AF37]" />
-                        <span>Save URL Link</span>
-                      </button>
-                    </div>
-                  </form>
-                </div>
-              ) : (
-                <div className="bg-[#FAF7F2] border border-[#E8DFD3] rounded-2xl p-5 shadow-2xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                  <div className="flex items-start gap-3">
-                    <div className="p-2.5 bg-amber-100/80 rounded-xl text-amber-800 shrink-0 mt-0.5">
-                      <Lock className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-[#1A1817]">
-                        Store Link Managed by Administrator
-                      </h4>
-                      <p className="text-xs text-[#7A7169] mt-0.5 max-w-md leading-relaxed">
-                        To preserve brand security, only the verified boutique administrator can edit the website URL. Customers can copy, share, and scan the live link.
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => {
-                      onClose();
-                      onOpenAdminLogin();
-                    }}
-                    className="px-3.5 py-2 bg-[#1F1B18] hover:bg-[#38312A] text-[#D4AF37] text-xs font-semibold rounded-xl flex items-center gap-1.5 transition-all shadow-xs shrink-0 cursor-pointer"
-                  >
-                    <KeyRound className="w-3.5 h-3.5" />
-                    <span>Admin Login to Edit</span>
-                  </button>
-                </div>
-              )}
             </div>
           )}
         </div>

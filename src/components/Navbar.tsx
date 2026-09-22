@@ -3,7 +3,6 @@ import {
   ShoppingBag, 
   Heart, 
   User, 
-  SlidersHorizontal, 
   Search, 
   Share2, 
   Check, 
@@ -12,13 +11,9 @@ import {
   Sparkles, 
   ExternalLink,
   Package,
-  Plus,
-  UserCheck,
-  ShieldCheck,
-  Lock,
   ArrowRight
 } from 'lucide-react';
-import { ProductCategory, UserRole } from '../types';
+import { ProductCategory } from '../types';
 import { AppRoute } from '../utils/router';
 
 interface NavbarProps {
@@ -27,18 +22,12 @@ interface NavbarProps {
   onOpenCart: () => void;
   onOpenWishlist: () => void;
   onOpenAccount: (defaultTab?: string) => void;
-  onOpenAdmin: () => void;
-  onOpenAdminProfile?: () => void;
-  onOpenAddProduct?: () => void;
   selectedCategory: string;
   onSelectCategory: (category: string) => void;
   searchQuery: string;
   onSearchChange: (query: string) => void;
   websiteUrl: string;
   activeAnnouncement?: string;
-  isAdminAuthenticated?: boolean;
-  onLogoutAdmin?: () => void;
-  currentRole?: UserRole | null;
   onNavigateRoute?: (route: AppRoute) => void;
 }
 
@@ -48,18 +37,12 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenCart,
   onOpenWishlist,
   onOpenAccount,
-  onOpenAdmin,
-  onOpenAdminProfile,
-  onOpenAddProduct,
   selectedCategory,
   onSelectCategory,
   searchQuery,
   onSearchChange,
   websiteUrl,
   activeAnnouncement = "Complimentary White-Glove Delivery on orders over ৳1,500 • Authentic Seoul & Hangzhou Luxury Imports • Code: KBEAUTY15",
-  isAdminAuthenticated = false,
-  onLogoutAdmin,
-  currentRole = null,
   onNavigateRoute,
 }) => {
   const [copied, setCopied] = useState(false);
@@ -159,59 +142,6 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Right Action Icons & Dashboard Controls */}
           <div className="flex items-center justify-end flex-1 gap-1 sm:gap-2">
-            {/* + Add Product Formulation (Visible ONLY when admin is authenticated) */}
-            {isAdminAuthenticated && onOpenAddProduct && (
-              <button
-                id="header-add-product-btn"
-                onClick={onOpenAddProduct}
-                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold tracking-wider uppercase text-white bg-[#1F1B18] hover:bg-[#342F2A] rounded-full shadow-xs transition-all"
-                title="Admin: Add New Formulation Anytime"
-              >
-                <Plus className="w-3.5 h-3.5 text-[#D4AF37]" />
-                <span className="hidden md:inline">+ Add Product</span>
-                <span className="inline md:hidden">+ Add</span>
-              </button>
-            )}
-
-            {/* Protected Portals Access: Admin (/admin-dashboard) and Merchant (/merchant-login) */}
-            <div className="flex items-center gap-1.5">
-              {/* Sole Merchant Portal Link */}
-              <button
-                id="open-merchant-portal-btn"
-                onClick={() => onNavigateRoute ? onNavigateRoute('merchant-login') : onOpenAdmin()}
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold tracking-wider uppercase rounded-full shadow-2xs transition-all cursor-pointer ${
-                  currentRole === 'merchant_moderator'
-                    ? 'bg-blue-600 text-white border border-blue-400'
-                    : 'bg-[#F0F5FA] hover:bg-[#E3EDF7] text-blue-900 border border-blue-200'
-                }`}
-                title="Sole Merchant Portal (/merchant-login) - Customer orders & inventory management"
-              >
-                <UserCheck className="w-3.5 h-3.5 text-blue-600" />
-                <span className="hidden lg:inline">Merchant (/merchant-login)</span>
-                <span className="inline lg:hidden">Merchant</span>
-              </button>
-
-              {/* Secret Admin Portal Link */}
-              <button
-                id="open-admin-dashboard-btn"
-                onClick={() => onNavigateRoute ? onNavigateRoute('admin-dashboard') : onOpenAdmin()}
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold tracking-wider uppercase rounded-full shadow-2xs transition-all cursor-pointer ${
-                  currentRole === 'admin'
-                    ? 'bg-[#1F1B18] text-[#D4AF37] border border-[#D4AF37]'
-                    : 'bg-[#FAF3E8] hover:bg-[#F2E5D0] text-[#1F1B18] border border-[#D4AF37]'
-                }`}
-                title="Secret Admin Portal (/admin-dashboard) - Full control over site, settings & roles"
-              >
-                {currentRole === 'admin' ? (
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-                ) : (
-                  <Lock className="w-3.5 h-3.5 text-amber-700" />
-                )}
-                <span className="hidden lg:inline">Admin (/admin-dashboard)</span>
-                <span className="inline lg:hidden">Admin</span>
-              </button>
-            </div>
-
             {/* Wishlist */}
             <button
               id="open-wishlist-btn"
@@ -438,133 +368,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </button>
                 </div>
               </div>
-
-              {/* STEP 3: PROTECTED STAFF & ADMIN PORTALS */}
-              <div className="pt-2 border-t border-[#EAE5DF]">
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="w-6 h-6 rounded-full bg-[#1F1B18] text-[#FAF8F5] text-xs font-bold flex items-center justify-center">3</span>
-                  <h4 className="text-xs uppercase tracking-[0.18em] font-bold text-[#1F1B18]">
-                    Step 3: Sole Merchant & Secret Admin Portals
-                  </h4>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  {/* Sole Merchant Portal */}
-                  <div className="p-4 bg-blue-50/70 border-2 border-blue-200 hover:border-blue-400 rounded-2xl transition-all">
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <div className="flex items-center gap-2.5">
-                        <div className="p-2.5 bg-blue-600 text-white rounded-xl shadow-xs">
-                          <UserCheck className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <p className="text-xs font-bold text-blue-950 uppercase tracking-wider">Sole Merchant Portal</p>
-                          <span className="text-[10px] font-mono text-blue-700 font-semibold">/merchant-login</span>
-                        </div>
-                      </div>
-                      <span className="text-[10px] bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded-md uppercase">
-                        Moderator
-                      </span>
-                    </div>
-                    <p className="text-xs text-blue-900/80 mb-3 leading-relaxed">
-                      Customer order tracking, packing slip status, formulation inventory, and review moderation.
-                    </p>
-                    <button
-                      id="door-portal-open-merchant-btn"
-                      onClick={() => {
-                        setMobileMenuOpen(false);
-                        if (onNavigateRoute) onNavigateRoute('merchant-login');
-                        else onOpenAdmin();
-                      }}
-                      className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-xs"
-                    >
-                      <span>Enter Merchant Portal</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-
-                  {/* Secret Admin Portal */}
-                  <div className="p-4 bg-[#1F1B18] text-[#FAF8F5] border-2 border-[#D4AF37] rounded-2xl shadow-sm">
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <div className="flex items-center gap-2.5">
-                        <div className="p-2.5 bg-[#2E2823] text-[#D4AF37] rounded-xl border border-[#483F37]">
-                          <Lock className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <p className="text-xs font-bold text-[#FAF8F5] uppercase tracking-wider">Secret Admin Portal</p>
-                          <span className="text-[10px] font-mono text-[#D4AF37] font-semibold">/admin-dashboard</span>
-                        </div>
-                      </div>
-                      <span className="text-[10px] bg-[#D4AF37]/20 text-[#D4AF37] font-bold px-2 py-0.5 rounded-md uppercase border border-[#D4AF37]/40">
-                        Full Authority
-                      </span>
-                    </div>
-                    <p className="text-xs text-[#B8ADA7] mb-3 leading-relaxed">
-                      Master website control, user roles, domain settings, security audit logs & Blowfish encryption.
-                    </p>
-                    <button
-                      id="door-portal-open-admin-btn"
-                      onClick={() => {
-                        setMobileMenuOpen(false);
-                        if (onNavigateRoute) onNavigateRoute('admin-dashboard');
-                        else onOpenAdmin();
-                      }}
-                      className="w-full py-2.5 px-4 bg-[#D4AF37] hover:bg-[#C29E2E] text-[#1F1B18] rounded-xl text-xs font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-xs"
-                    >
-                      <span>Enter Secret Admin Portal</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Staff Actions if authenticated */}
-                {isAdminAuthenticated && (
-                  <div className="mt-4 p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-xs font-semibold text-emerald-900">
-                      <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                      <span>Authenticated as Master Admin (Akon MD)</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {onOpenAdminProfile && (
-                        <button
-                          onClick={() => {
-                            setMobileMenuOpen(false);
-                            onOpenAdminProfile();
-                          }}
-                          className="text-[11px] font-bold text-emerald-800 hover:underline cursor-pointer"
-                        >
-                          Profile
-                        </button>
-                      )}
-                      {onOpenAddProduct && (
-                        <button
-                          onClick={() => {
-                            setMobileMenuOpen(false);
-                            onOpenAddProduct();
-                          }}
-                          className="text-[11px] font-bold text-emerald-800 hover:underline cursor-pointer"
-                        >
-                          + Add
-                        </button>
-                      )}
-                      {onLogoutAdmin && (
-                        <button
-                          onClick={() => {
-                            setMobileMenuOpen(false);
-                            onLogoutAdmin();
-                          }}
-                          className="text-[11px] font-bold text-rose-700 hover:underline cursor-pointer"
-                        >
-                          Log Out
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
             </div>
           </div>
-        </div>
-      )}
-    </header>
+          </div>
+        )}
+      </header>
   );
 };

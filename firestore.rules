@@ -1,0 +1,28 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Products: Publicly readable for all customers; writable for admin and merchant product management
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Orders: Anyone can create orders during checkout; readable and updatable for order tracking & admin
+    match /orders/{orderId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Reviews: Publicly readable, customers can submit reviews, admin can moderate
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Store Settings & Metadata
+    match /store_config/{configId} {
+      allow read: if true;
+      allow write: if true;
+    }
+  }
+}

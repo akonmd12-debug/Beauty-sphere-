@@ -20,18 +20,26 @@ export function parseCurrentRoute(): AppRoute {
 
   const pathname = window.location.pathname.toLowerCase();
   const hash = window.location.hash.toLowerCase().replace(/^#/, '');
+  const search = window.location.search.toLowerCase();
+  const searchParams = new URLSearchParams(search);
+  const routeParam = (searchParams.get('route') || searchParams.get('portal') || searchParams.get('p') || '').toLowerCase();
 
-  // Check secret admin route
+  // Check secret admin route (via path, hash, or query parameter)
   if (
     pathname.includes('admin-dashboard') ||
     hash.includes('admin-dashboard') ||
     pathname === '/admin' ||
-    hash === '/admin'
+    hash === '/admin' ||
+    hash === 'admin' ||
+    routeParam === 'admin-dashboard' ||
+    routeParam === 'admin' ||
+    search.includes('route=admin-dashboard') ||
+    search.includes('route=admin')
   ) {
     return 'admin-dashboard';
   }
 
-  // Check sole merchant route
+  // Check sole merchant route (via path, hash, or query parameter)
   if (
     pathname.includes('merchant-login') ||
     hash.includes('merchant-login') ||
@@ -40,7 +48,13 @@ export function parseCurrentRoute(): AppRoute {
     pathname.includes('merchant-dashboard') ||
     hash.includes('merchant-dashboard') ||
     pathname === '/merchant' ||
-    hash === '/merchant'
+    hash === '/merchant' ||
+    hash === 'merchant' ||
+    hash === 'merchant-login' ||
+    routeParam === 'merchant-login' ||
+    routeParam === 'merchant' ||
+    search.includes('route=merchant-login') ||
+    search.includes('route=merchant')
   ) {
     return 'merchant-login';
   }

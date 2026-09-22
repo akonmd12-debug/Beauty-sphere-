@@ -1,0 +1,56 @@
+{
+  "entities": {
+    "products": {
+      "description": "Luxury K-Beauty & C-Beauty product catalog",
+      "fields": {
+        "id": { "type": "string", "description": "Unique product ID" },
+        "name": { "type": "string", "description": "Product display title" },
+        "brand": { "type": "string", "description": "Brand / Producer name" },
+        "origin": { "type": "string", "description": "Country / Region of origin (Korea, China, Japan)" },
+        "category": { "type": "string", "description": "Product category" },
+        "price": { "type": "number", "description": "Price in BDT (৳)" },
+        "originalPrice": { "type": "number", "description": "Original price before discount in BDT (৳)" },
+        "discountPercent": { "type": "number", "description": "Discount percentage" },
+        "stock": { "type": "number", "description": "Available inventory units" },
+        "rating": { "type": "number", "description": "Average customer rating" },
+        "reviewsCount": { "type": "number", "description": "Total reviews count" },
+        "heroImage": { "type": "string", "description": "Main product image URL" },
+        "galleryImages": { "type": "array", "description": "Product gallery image URLs" },
+        "description": { "type": "string", "description": "Detailed description" },
+        "keyBenefits": { "type": "array", "description": "List of key skin benefits" },
+        "volume": { "type": "string", "description": "Size / Volume specification" },
+        "isBestseller": { "type": "boolean", "description": "Whether highlighted as bestseller" },
+        "isFeatured": { "type": "boolean", "description": "Featured on luxury hero carousel" },
+        "updatedAt": { "type": "string", "description": "ISO timestamp of last modification" }
+      }
+    },
+    "orders": {
+      "description": "Customer purchase orders for white-glove delivery",
+      "fields": {
+        "id": { "type": "string", "description": "Unique order tracking code" },
+        "items": { "type": "array", "description": "Cart items ordered" },
+        "subtotal": { "type": "number", "description": "Subtotal in BDT (৳)" },
+        "shippingCost": { "type": "number", "description": "Shipping fee in BDT (৳)" },
+        "totalAmount": { "type": "number", "description": "Total order amount in BDT (৳)" },
+        "customerInfo": { "type": "object", "description": "Customer recipient details and delivery address" },
+        "paymentMethod": { "type": "string", "description": "Payment method (COD, bKash, Nagad, etc.)" },
+        "paymentStatus": { "type": "string", "description": "Payment status" },
+        "orderStatus": { "type": "string", "description": "Fulfillment status (Pending, Processing, Shipped, Delivered)" },
+        "createdAt": { "type": "string", "description": "ISO timestamp when order was placed" },
+        "updatedAt": { "type": "string", "description": "ISO timestamp of last update" }
+      }
+    },
+    "reviews": {
+      "description": "Customer verified formulation reviews",
+      "fields": {
+        "id": { "type": "string", "description": "Unique review ID" },
+        "productId": { "type": "string", "description": "Associated product ID" },
+        "author": { "type": "string", "description": "Reviewer name" },
+        "rating": { "type": "number", "description": "Star rating out of 5" },
+        "comment": { "type": "string", "description": "Review content" },
+        "date": { "type": "string", "description": "Review display date" },
+        "verifiedPurchase": { "type": "boolean", "description": "Whether verified buyer" }
+      }
+    }
+  }
+}

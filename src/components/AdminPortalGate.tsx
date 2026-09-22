@@ -199,18 +199,15 @@ export const AdminPortalGate: React.FC<AdminPortalGateProps> = ({
 
         {/* Footer Links */}
         <div className="pt-2 border-t border-[#2C2621] flex items-center justify-between text-xs text-[#8C8075]">
-          <button
-            onClick={onNavigateMerchant}
-            className="hover:text-blue-300 transition-colors cursor-pointer flex items-center gap-1"
-          >
-            <UserCheck className="w-3 h-3 text-blue-400" />
-            <span>Sole Merchant Portal (/merchant-login)</span>
-          </button>
+          <span className="text-[11px] text-[#6E6359]">
+            BEAUTY SPHERE • Authorized Access Only
+          </span>
           <button
             onClick={onNavigateHome}
-            className="hover:text-white transition-colors cursor-pointer"
+            className="hover:text-white transition-colors cursor-pointer flex items-center gap-1 font-medium"
           >
-            Storefront (/)
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Storefront (/)</span>
           </button>
         </div>
       </div>

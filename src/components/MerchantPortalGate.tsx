@@ -203,18 +203,15 @@ export const MerchantPortalGate: React.FC<MerchantPortalGateProps> = ({
 
         {/* Footer Links */}
         <div className="pt-2 border-t border-blue-900/60 flex items-center justify-between text-xs text-blue-300/70">
-          <button
-            onClick={onNavigateAdmin}
-            className="hover:text-amber-300 transition-colors cursor-pointer flex items-center gap-1"
-          >
-            <Lock className="w-3 h-3 text-amber-400" />
-            <span>Master Admin Portal (/admin-dashboard)</span>
-          </button>
+          <span className="text-[11px] text-blue-400/60">
+            Sole Merchant Private Session
+          </span>
           <button
             onClick={onNavigateHome}
-            className="hover:text-white transition-colors cursor-pointer"
+            className="hover:text-white transition-colors cursor-pointer flex items-center gap-1 font-medium"
           >
-            Storefront (/)
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Storefront (/)</span>
           </button>
         </div>
       </div>

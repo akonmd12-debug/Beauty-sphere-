@@ -19,8 +19,6 @@ import { AppRoute } from '../utils/router';
 interface FooterProps {
   userProfile: UserProfile;
   onOpenAccount: (tab?: string) => void;
-  onOpenAdmin: () => void;
-  onOpenAdminProfile?: () => void;
   websiteUrl: string;
   onNavigateRoute?: (route: AppRoute) => void;
 }
@@ -28,8 +26,6 @@ interface FooterProps {
 export const Footer: React.FC<FooterProps> = ({
   userProfile,
   onOpenAccount,
-  onOpenAdmin,
-  onOpenAdminProfile,
   websiteUrl,
   onNavigateRoute,
 }) => {
@@ -121,14 +117,6 @@ export const Footer: React.FC<FooterProps> = ({
               Haute K-Beauty & C-Beauty Skincare • Hanbang & Imperial Phyto-Cosmetic Formulations. 
               Authentically imported direct from certified bio-cellular laboratories in Seoul, Jeju Island, Hangzhou, and Yunnan.
             </p>
-            <div className="pt-2">
-              <button
-                onClick={onOpenAdmin}
-                className="text-[11px] text-[#D4AF37] hover:underline uppercase tracking-wider font-semibold"
-              >
-                Access Merchant Admin Portal →
-              </button>
-            </div>
           </div>
 
           {/* Quick Nav Links */}
@@ -404,32 +392,8 @@ export const Footer: React.FC<FooterProps> = ({
             © 2026 to 2029 BEAUTY SPHERE SHOP. All rights reserved. Sovereign Botanical Formulations.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-4 text-[#8C8075]">
-            <button onClick={() => onOpenAccount('website-link')} className="hover:text-white transition-colors">
+            <button onClick={() => onOpenAccount('website-link')} className="hover:text-white transition-colors cursor-pointer">
               Platform Direct URL
-            </button>
-            <span>•</span>
-            {onOpenAdminProfile && (
-              <>
-                <button onClick={onOpenAdminProfile} className="hover:text-[#D4AF37] text-[#D4AF37]/90 font-medium transition-colors">
-                  Admin Profile (Akon MD)
-                </button>
-                <span>•</span>
-              </>
-            )}
-            <button 
-              onClick={() => onNavigateRoute ? onNavigateRoute('merchant-login') : onOpenAdmin()} 
-              className="text-blue-400 hover:text-blue-300 font-medium transition-colors cursor-pointer"
-              title="Access Sole Merchant & Moderator Console (/merchant-login)"
-            >
-              Sole Merchant Portal (/merchant-login)
-            </button>
-            <span>•</span>
-            <button 
-              onClick={() => onNavigateRoute ? onNavigateRoute('admin-dashboard') : onOpenAdmin()} 
-              className="text-amber-400 hover:text-amber-300 font-medium transition-colors cursor-pointer"
-              title="Access Master Administrator Portal (/admin-dashboard)"
-            >
-              Secret Admin Portal (/admin-dashboard)
             </button>
             <span>•</span>
             <button onClick={() => onOpenAccount('profile')} className="hover:text-white transition-colors cursor-pointer">

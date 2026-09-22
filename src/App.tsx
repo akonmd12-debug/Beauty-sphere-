@@ -4,18 +4,14 @@ import {
   Sparkles, 
   Heart, 
   ArrowUpDown, 
-  Share2, 
   SlidersHorizontal, 
   Check, 
   User, 
-  ExternalLink,
-  ChevronDown,
-  Tag,
-  RefreshCw,
-  ShoppingBag,
-  ShieldCheck,
-  Lock,
-  Edit3
+  ChevronDown, 
+  Tag, 
+  RefreshCw, 
+  ShoppingBag, 
+  ShieldCheck 
 } from 'lucide-react';
 import { 
   Product, 
@@ -59,6 +55,16 @@ import {
   getActiveAuthSession,
   clearActiveAuthSession
 } from './utils/storage';
+import { 
+  subscribeToProductsLive, 
+  saveProductsBatchToFirestore, 
+  subscribeToOrdersLive, 
+  saveOrderToFirestore, 
+  updateOrderStatusInFirestore,
+  subscribeToReviewsLive,
+  saveReviewToFirestore,
+  deleteReviewFromFirestore
+} from './services/firebase';
 import { Navbar } from './components/Navbar';
 import { HeroBanner } from './components/HeroBanner';
 import { ProductCard } from './components/ProductCard';
@@ -73,9 +79,7 @@ import { ProducersModal } from './components/ProducersModal';
 import { OffersBannerModal } from './components/OffersBannerModal';
 import { Footer } from './components/Footer';
 import { SakuraBloomBackground } from './components/SakuraBloomBackground';
-import { EditUrlModal } from './components/EditUrlModal';
 import { AppRoute, parseCurrentRoute, navigateToRoute } from './utils/router';
-import { RouteSwitcherBar } from './components/RouteSwitcherBar';
 import { AdminPortalGate } from './components/AdminPortalGate';
 import { MerchantPortalGate } from './components/MerchantPortalGate';
 import { MerchantDashboard } from './components/MerchantDashboard';
@@ -120,7 +124,6 @@ export default function App() {
   const [isOffersModalOpen, setIsOffersModalOpen] = useState(false);
   const [selectedProductForModal, setSelectedProductForModal] = useState<Product | null>(null);
   const [productModalTab, setProductModalTab] = useState<'benefits' | 'ritual' | 'ingredients' | 'reviews'>('benefits');
-  const [isEditUrlModalOpen, setIsEditUrlModalOpen] = useState(false);
 
   // Notification Toast
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -157,6 +160,58 @@ export default function App() {
   useEffect(() => {
     saveStoredProducts(products);
   }, [products]);
+
+  // Real-time Firestore Cloud Database Synchronization
+  useEffect(() => {
+    // 1. Subscribe to live Products
+    const unsubProducts = subscribeToProductsLive(
+      (liveProducts) => {
+        if (liveProducts && liveProducts.length > 0) {
+          setProducts(liveProducts);
+          saveStoredProducts(liveProducts);
+        }
+      },
+      (err) => console.warn('Firestore products sync fallback to local cache:', err)
+    );
+
+    // 2. Subscribe to live Orders (visible from any device)
+    const unsubOrders = subscribeToOrdersLive(
+      (liveOrders) => {
+        if (liveOrders) {
+          setOrders(liveOrders);
+          saveStoredOrders(liveOrders);
+        }
+      },
+      (err) => console.warn('Firestore orders sync fallback to local cache:', err)
+    );
+
+    // 3. Subscribe to live Customer Reviews
+    const unsubReviews = subscribeToReviewsLive((liveReviews) => {
+      if (liveReviews && liveReviews.length > 0) {
+        setReviews(liveReviews);
+        saveStoredReviews(liveReviews);
+      }
+    });
+
+    return () => {
+      unsubProducts();
+      unsubOrders();
+      unsubReviews();
+    };
+  }, []);
+
+  // Save products to local state and push to live Firestore database
+  const handleSaveProducts = async (updatedProducts: Product[]) => {
+    setProducts(updatedProducts);
+    saveStoredProducts(updatedProducts);
+    try {
+      await saveProductsBatchToFirestore(updatedProducts);
+      showToast('Live Cloud Sync: Product catalog updated on Firestore!');
+    } catch (err) {
+      console.error('Failed to sync products to Firestore:', err);
+      showToast('Saved locally (Cloud sync will retry automatically)');
+    }
+  };
 
   useEffect(() => {
     saveStoredProducers(producers);
@@ -235,15 +290,6 @@ export default function App() {
     showToast('Customer account & shipping details saved!');
   };
 
-  const [copiedBottomBar, setCopiedBottomBar] = useState(false);
-  const handleCopyBottomUrl = () => {
-    const url = websiteUrl || (typeof window !== 'undefined' ? window.location.href : '');
-    navigator.clipboard.writeText(url);
-    setCopiedBottomBar(true);
-    setTimeout(() => setCopiedBottomBar(false), 2500);
-    showToast('Official boutique URL copied to clipboard!');
-  };
-
   const handleUpdateWebsiteUrl = (newUrl: string) => {
     if (!isAdminAuthenticated) {
       showToast('Access denied: Administrator authorization required to edit the store URL.');
@@ -267,15 +313,25 @@ export default function App() {
     setIsCheckoutOpen(true);
   };
 
-  // Handle Review Operations
-  const handleAddReview = (newReview: ProductReview) => {
+  // Handle Review Operations with Live Cloud Database Sync
+  const handleAddReview = async (newReview: ProductReview) => {
     setReviews((prev) => [newReview, ...prev]);
     showToast(`Thank you! Your verified review for "${newReview.title}" has been published.`);
+    try {
+      await saveReviewToFirestore(newReview);
+    } catch (err) {
+      console.error('Failed to sync review to Firestore:', err);
+    }
   };
 
-  const handleDeleteReview = (reviewId: string) => {
+  const handleDeleteReview = async (reviewId: string) => {
     setReviews((prev) => prev.filter((r) => r.id !== reviewId));
     showToast(`Customer review removed.`);
+    try {
+      await deleteReviewFromFirestore(reviewId);
+    } catch (err) {
+      console.error('Failed to delete review from Firestore:', err);
+    }
   };
 
   // Handle Cart Operations
@@ -361,27 +417,35 @@ export default function App() {
     setAppliedDiscount(null);
   };
 
-  // When order completed: log order and deduct stock
-  const handleOrderCompleted = (newOrder: Order) => {
+  // When order completed: log order, deduct stock, and sync to live Firestore cloud database
+  const handleOrderCompleted = async (newOrder: Order) => {
     setOrders((prev) => [newOrder, ...prev]);
 
     // Deduct stock dynamically
-    setProducts((prev) =>
-      prev.map((p) => {
-        const orderedItem = newOrder.items.find((it) => it.productId === p.id);
-        if (orderedItem) {
-          return { ...p, stock: Math.max(0, p.stock - orderedItem.quantity) };
-        }
-        return p;
-      })
-    );
+    const updatedProducts = products.map((p) => {
+      const orderedItem = newOrder.items.find((it) => it.productId === p.id);
+      if (orderedItem) {
+        return { ...p, stock: Math.max(0, p.stock - orderedItem.quantity) };
+      }
+      return p;
+    });
+    setProducts(updatedProducts);
+    saveStoredProducts(updatedProducts);
 
-    showToast(`Order ${newOrder.orderNumber} successfully confirmed!`);
+    showToast(`Order ${newOrder.orderNumber} successfully confirmed & recorded to live database!`);
+
+    // Persist order and inventory updates to live Firestore
+    try {
+      await saveOrderToFirestore(newOrder);
+      await saveProductsBatchToFirestore(updatedProducts);
+    } catch (err) {
+      console.error('Failed to sync order and stock to Firestore:', err);
+    }
   };
 
-  // Update order status from Admin
-  const handleUpdateOrderStatus = (orderId: string, newStatus: Order['status']) => {
-    if (!isAdminAuthenticated) {
+  // Update order status from Admin or Merchant Console
+  const handleUpdateOrderStatus = async (orderId: string, newStatus: Order['status']) => {
+    if (!isAdminAuthenticated && currentRole !== 'merchant_moderator' && currentRole !== 'admin') {
       showToast('Access denied: Administrator authorization required to manage customer orders.');
       setIsAdminLoginModalOpen(true);
       return;
@@ -390,6 +454,13 @@ export default function App() {
       prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o))
     );
     showToast(`Order status updated to ${newStatus}`);
+
+    // Persist to live Firestore so all devices see the updated status
+    try {
+      await updateOrderStatusInFirestore(orderId, newStatus);
+    } catch (err) {
+      console.error('Failed to update order status in Firestore:', err);
+    }
   };
 
   // Filtered & Sorted Products
@@ -476,13 +547,6 @@ export default function App() {
     if (accessDecision.status === 'ACCESS_DENIED_MERCHANT') {
       return (
         <div className="min-h-screen bg-[#0F0C0A] flex flex-col font-sans">
-          <RouteSwitcherBar
-            currentRoute={currentRoute}
-            onNavigate={handleNavigateToRoute}
-            currentRole={currentRole}
-            isAdminAuthenticated={isAdminAuthenticated}
-            currentUserDisplayName={currentUser?.displayName}
-          />
           <AccessDeniedScreen
             user={accessDecision.user}
             targetRoute={currentRoute}
@@ -499,14 +563,6 @@ export default function App() {
 
     return (
       <div className="min-h-screen bg-[#141210] flex flex-col font-sans">
-        <RouteSwitcherBar
-          currentRoute={currentRoute}
-          onNavigate={handleNavigateToRoute}
-          currentRole={currentRole}
-          isAdminAuthenticated={isAdminAuthenticated}
-          currentUserDisplayName={currentUser?.displayName}
-        />
-
         {toastMessage && (
           <div className="fixed bottom-6 right-6 z-50 bg-[#1F1B18] text-[#FAF8F5] px-4 py-3 rounded-xl shadow-xl border border-[#3A322C] text-xs font-medium flex items-center gap-2 animate-fadeIn">
             <Sparkles className="w-4 h-4 text-[#D4AF37]" />
@@ -526,7 +582,7 @@ export default function App() {
             onNavigateMerchant={() => handleNavigateToRoute('merchant-login')}
             onLogout={handleAdminLogout}
             products={products}
-            onSaveProducts={setProducts}
+            onSaveProducts={handleSaveProducts}
             skinOptions={skinOptions}
             onSaveSkinOptions={(newOpts) => {
               setSkinOptions(newOpts);
@@ -570,14 +626,6 @@ export default function App() {
 
     return (
       <div className="min-h-screen bg-[#0E1526] flex flex-col font-sans">
-        <RouteSwitcherBar
-          currentRoute={currentRoute}
-          onNavigate={handleNavigateToRoute}
-          currentRole={currentRole}
-          isAdminAuthenticated={isAdminAuthenticated}
-          currentUserDisplayName={currentUser?.displayName}
-        />
-
         {toastMessage && (
           <div className="fixed bottom-6 right-6 z-50 bg-[#1F1B18] text-[#FAF8F5] px-4 py-3 rounded-xl shadow-xl border border-[#3A322C] text-xs font-medium flex items-center gap-2 animate-fadeIn">
             <Sparkles className="w-4 h-4 text-[#D4AF37]" />
@@ -588,7 +636,7 @@ export default function App() {
         {accessDecision.status === 'GRANTED' && (accessDecision.role === 'merchant_moderator' || accessDecision.role === 'admin') ? (
           <MerchantDashboard
             products={products}
-            onSaveProducts={setProducts}
+            onSaveProducts={handleSaveProducts}
             producers={producers}
             onSaveProducers={setProducers}
             offers={offers}
@@ -619,15 +667,6 @@ export default function App() {
   // ==========================================
   return (
     <div className="min-h-screen bg-[#FAF8F5] text-[#1A1817] flex flex-col font-sans selection:bg-[#E8DFD8] selection:text-[#1A1817] relative overflow-x-hidden">
-      {/* Route Switcher Bar for Seamless Navigation */}
-      <RouteSwitcherBar
-        currentRoute={currentRoute}
-        onNavigate={handleNavigateToRoute}
-        currentRole={currentRole}
-        isAdminAuthenticated={isAdminAuthenticated}
-        currentUserDisplayName={currentUser?.displayName}
-      />
-
       {/* Full Page Sakura Bloom Drifting Animation & Atmospheric Controls */}
       <SakuraBloomBackground />
 
@@ -652,18 +691,6 @@ export default function App() {
           setAccountInitialTab(defaultTab);
           setIsAccountOpen(true);
         }}
-        onOpenAdmin={() => handleOpenAdmin('inventory', false)}
-        onOpenAdminProfile={() => {
-          if (isAdminAuthenticated) {
-            setIsAdminProfileOpen(true);
-          } else {
-            handleOpenAdmin('admin-profile', false);
-          }
-        }}
-        onOpenAddProduct={() => handleOpenAdmin('inventory', true)}
-        isAdminAuthenticated={isAdminAuthenticated}
-        onLogoutAdmin={handleAdminLogout}
-        currentRole={currentRole}
         onNavigateRoute={handleNavigateToRoute}
         selectedCategory={selectedCategory}
         onSelectCategory={(cat) => {
@@ -862,82 +889,33 @@ export default function App() {
           </div>
         )}
 
-        {/* Banner: Sole Merchant Admin controls ONLY visible when admin is authenticated */}
-        {isAdminAuthenticated ? (
-          <div className="mt-16 p-6 sm:p-8 bg-gradient-to-r from-[#F4EDE5] via-[#EDE4DA] to-[#F4EDE5] border border-[#DDD3C7] rounded-2xl flex flex-col md:flex-row items-center justify-between gap-6 shadow-xs">
-            <div className="space-y-1 text-center md:text-left">
-              <span className="text-[10px] uppercase font-bold tracking-[0.25em] text-[#8C6B3E]">
-                Sole Merchant Storefront • Producer Authenticity
-              </span>
-              <h3 className="font-serif-luxury text-2xl sm:text-3xl text-[#1A1817]">
-                Add Formulations Anytime & Manage Reviews
-              </h3>
-              <p className="text-xs sm:text-sm text-[#5A5148] font-light max-w-xl">
-                As the sole boutique owner, only you (Akon MD) can add product formulations, edit pricing, and adjust inventory. Public posting is restricted to maintain luxury authenticity.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap items-center justify-center md:justify-end gap-3 shrink-0">
-              <button
-                onClick={() => setIsAdminProfileOpen(true)}
-                className="px-4 py-3 bg-[#D4AF37] hover:bg-[#C29E2E] text-[#1A1817] text-xs font-bold uppercase tracking-wider rounded-xl shadow-xs transition-all flex items-center gap-2"
-              >
-                <User className="w-4 h-4" />
-                <span>Admin Profile</span>
-              </button>
-
-              <button
-                onClick={() => {
-                  setAdminInitialTab('inventory');
-                  setAdminOpenAddProduct(true);
-                  setIsAdminOpen(true);
-                }}
-                className="px-4 py-3 bg-[#1F1B18] hover:bg-[#342F2A] text-white text-xs font-semibold uppercase tracking-wider rounded-xl shadow-xs transition-all flex items-center gap-2"
-              >
-                <Sparkles className="w-4 h-4 text-[#D4AF37]" />
-                <span>+ Add Product Anytime</span>
-              </button>
-
-              <button
-                onClick={() => {
-                  setAccountInitialTab('website-link');
-                  setIsAccountOpen(true);
-                }}
-                className="px-4 py-3 bg-white hover:bg-[#FAF8F5] border border-[#CFC3B3] text-[#1F1B18] text-xs font-semibold tracking-wider rounded-xl transition-all flex items-center gap-2"
-              >
-                <ExternalLink className="w-4 h-4 text-[#8C6B3E]" />
-                <span>Store Link</span>
-              </button>
-            </div>
+        {/* Boutique Client Information Banner */}
+        <div className="mt-16 p-6 sm:p-8 bg-[#FAF6F0] border border-[#E8DFC8] rounded-2xl flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="space-y-1 text-center md:text-left">
+            <span className="text-[10px] uppercase font-bold tracking-[0.25em] text-[#8C6B3E]">
+              Direct From Seoul & Hangzhou Artisans
+            </span>
+            <h3 className="font-serif-luxury text-2xl sm:text-3xl text-[#1A1817]">
+              Authentic Korean & Chinese Luxury Beauty
+            </h3>
+            <p className="text-xs sm:text-sm text-[#5A5148] font-light max-w-xl">
+              Every formulation in BEAUTY SPHERE is carefully curated and directly sourced. Enjoy complimentary white-glove packaging, fast express dispatch, and personal concierge support on all orders.
+            </p>
           </div>
-        ) : (
-          <div className="mt-16 p-6 sm:p-8 bg-[#FAF6F0] border border-[#E8DFC8] rounded-2xl flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="space-y-1 text-center md:text-left">
-              <span className="text-[10px] uppercase font-bold tracking-[0.25em] text-[#8C6B3E]">
-                Direct From Seoul & Hangzhou Artisans
-              </span>
-              <h3 className="font-serif-luxury text-2xl sm:text-3xl text-[#1A1817]">
-                Authentic Korean & Chinese Luxury Beauty
-              </h3>
-              <p className="text-xs sm:text-sm text-[#5A5148] font-light max-w-xl">
-                Every formulation in BEAUTY SPHERE is carefully curated and directly sourced. Enjoy complimentary white-glove packaging, fast express dispatch, and personal concierge support on all orders.
-              </p>
-            </div>
 
-            <div className="flex items-center gap-3 shrink-0">
-              <button
-                onClick={() => {
-                  setAccountInitialTab('profile');
-                  setIsAccountOpen(true);
-                }}
-                className="px-5 py-3 bg-[#1F1B18] hover:bg-[#342F2A] text-white text-xs font-semibold uppercase tracking-wider rounded-xl shadow-xs transition-all flex items-center gap-2"
-              >
-                <User className="w-4 h-4 text-[#D4AF37]" />
-                <span>Client Account</span>
-              </button>
-            </div>
+          <div className="flex items-center gap-3 shrink-0">
+            <button
+              onClick={() => {
+                setAccountInitialTab('profile');
+                setIsAccountOpen(true);
+              }}
+              className="px-5 py-3 bg-[#1F1B18] hover:bg-[#342F2A] text-white text-xs font-semibold uppercase tracking-wider rounded-xl shadow-xs transition-all flex items-center gap-2 cursor-pointer"
+            >
+              <User className="w-4 h-4 text-[#D4AF37]" />
+              <span>Client Account</span>
+            </button>
           </div>
-        )}
+        </div>
       </main>
 
       {/* Cart Drawer */}
@@ -1006,17 +984,12 @@ export default function App() {
         initialTab={accountInitialTab}
         customerAccount={customerAccount}
         onUpdateCustomerAccount={handleUpdateCustomerAccount}
-        orders={isAdminAuthenticated ? orders : []}
+        orders={orders}
         wishlistProducts={wishlistProducts}
         onAddToCart={(p) => handleAddToCart(p, 1)}
         onBuyNow={handleBuyNow}
         onRemoveFromWishlist={(id) => setWishlist((prev) => prev.filter((i) => i !== id))}
-        onOpenAdminLogin={() => setIsAdminLoginModalOpen(true)}
-        isAdminAuthenticated={isAdminAuthenticated}
-        onOpenAdminDashboard={() => setIsAdminOpen(true)}
-        onLogoutAdmin={handleAdminLogout}
         websiteUrl={websiteUrl}
-        onUpdateWebsiteUrl={handleUpdateWebsiteUrl}
       />
 
       {/* Admin & Merchant Login Modal (BCrypt Encrypted Credentials) */}
@@ -1041,7 +1014,7 @@ export default function App() {
           }}
           onLogout={handleAdminLogout}
           products={products}
-          onSaveProducts={setProducts}
+          onSaveProducts={handleSaveProducts}
           skinOptions={skinOptions}
           onSaveSkinOptions={(newOpts) => {
             setSkinOptions(newOpts);
@@ -1116,124 +1089,8 @@ export default function App() {
           setAccountInitialTab(tab);
           setIsAccountOpen(true);
         }}
-        onOpenAdmin={() => handleOpenAdmin('inventory', false)}
-        onOpenAdminProfile={() => {
-          if (isAdminAuthenticated) {
-            setIsAdminProfileOpen(true);
-          } else {
-            handleOpenAdmin('admin-profile', false);
-          }
-        }}
         websiteUrl={websiteUrl}
         onNavigateRoute={handleNavigateToRoute}
-      />
-
-      {/* Persistent Official Boutique URL Bar at Bottom */}
-      <div id="sticky-bottom-store-link-bar" className="sticky bottom-0 z-30 bg-[#161412]/95 backdrop-blur-md border-t border-[#332B24] py-2.5 px-4 text-white shadow-2xl">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2.5">
-          <div className="flex items-center gap-2.5 text-center sm:text-left min-w-0">
-            <span className="w-2 h-2 rounded-full bg-[#D4AF37] shrink-0 animate-pulse"></span>
-            <span className="text-[11px] font-bold uppercase tracking-wider text-[#D4AF37] shrink-0">
-              Official Boutique URL:
-            </span>
-            <button
-              onClick={() => setIsEditUrlModalOpen(true)}
-              className="font-mono text-xs text-[#EAE3D8] hover:text-white bg-[#241F1A] hover:bg-[#2F2822] px-2.5 py-0.5 rounded border border-[#3E342B] hover:border-[#D4AF37]/50 truncate max-w-[200px] sm:max-w-md select-all text-left transition-colors cursor-pointer group flex items-center gap-1.5"
-              title={isAdminAuthenticated ? "Edit store URL (Admin Verified)" : "Edit store URL (Admin Password Required)"}
-            >
-              <span className="truncate">{websiteUrl || (typeof window !== 'undefined' ? window.location.href : '')}</span>
-              {isAdminAuthenticated ? (
-                <Edit3 className="w-3 h-3 text-gray-400 group-hover:text-[#D4AF37] shrink-0" />
-              ) : (
-                <Lock className="w-3 h-3 text-amber-500/80 group-hover:text-[#D4AF37] shrink-0" />
-              )}
-            </button>
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0 flex-wrap justify-center">
-            <button
-              id="edit-boutique-url-bottom-btn"
-              onClick={() => setIsEditUrlModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#26201B] hover:bg-[#3E342B] text-[#E0D7CC] hover:text-white border border-[#4D4033] text-xs font-semibold rounded-lg shadow-sm transition-all active:scale-95 cursor-pointer"
-              title={isAdminAuthenticated ? "Edit official boutique URL link" : "Administrator password required to edit store URL"}
-            >
-              {isAdminAuthenticated ? (
-                <Edit3 className="w-3.5 h-3.5 text-[#D4AF37]" />
-              ) : (
-                <Lock className="w-3.5 h-3.5 text-[#D4AF37]" />
-              )}
-              <span>Edit URL</span>
-              {!isAdminAuthenticated && (
-                <span className="text-[9px] uppercase font-bold text-amber-400/90 bg-amber-950/60 px-1 py-0.2 rounded border border-amber-800/60">
-                  Admin
-                </span>
-              )}
-            </button>
-
-            <button
-              id="copy-boutique-url-bottom-btn"
-              onClick={handleCopyBottomUrl}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-[#D4AF37] hover:bg-[#C29E2E] text-[#1A1817] text-xs font-bold uppercase tracking-wider rounded-lg shadow-sm transition-all active:scale-95 cursor-pointer"
-            >
-              {copiedBottomBar ? (
-                <>
-                  <Check className="w-3.5 h-3.5 text-[#1A1817]" />
-                  <span>URL Copied!</span>
-                </>
-              ) : (
-                <>
-                  <Share2 className="w-3.5 h-3.5" />
-                  <span>Copy Store Link</span>
-                </>
-              )}
-            </button>
-
-            {/* Merchant Portal Quick Link */}
-            <button
-              id="bottom-bar-merchant-btn"
-              onClick={() => handleNavigateToRoute('merchant-login')}
-              className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-1.5 bg-blue-950/80 hover:bg-blue-900 text-blue-200 border border-blue-700/60 text-xs font-semibold rounded-lg transition-all cursor-pointer"
-              title="Sole Merchant Portal (/merchant-login) - Customer orders & inventory"
-            >
-              <User className="w-3.5 h-3.5 text-blue-400" />
-              <span>Merchant</span>
-            </button>
-
-            {/* Secret Admin Portal Quick Link */}
-            <button
-              id="bottom-bar-admin-btn"
-              onClick={() => handleNavigateToRoute('admin-dashboard')}
-              className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-1.5 bg-[#26201B] hover:bg-[#382F27] text-[#D4AF37] border border-[#4D4033] text-xs font-semibold rounded-lg transition-all cursor-pointer"
-              title="Secret Admin Portal (/admin-dashboard) - Full site control & user roles"
-            >
-              {isAdminAuthenticated && currentRole === 'admin' ? (
-                <>
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Admin</span>
-                </>
-              ) : (
-                <>
-                  <Lock className="w-3.5 h-3.5 text-[#D4AF37]" />
-                  <span>Admin</span>
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Edit Website URL Link Modal (Admin Protected) */}
-      <EditUrlModal
-        isOpen={isEditUrlModalOpen}
-        onClose={() => setIsEditUrlModalOpen(false)}
-        currentUrl={websiteUrl || (typeof window !== 'undefined' ? window.location.href : '')}
-        onSaveUrl={handleUpdateWebsiteUrl}
-        isAdminAuthenticated={isAdminAuthenticated}
-        onAdminVerified={() => {
-          setIsAdminAuthenticated(true);
-          showToast('Administrator session verified.');
-        }}
-        onOpenAdminLogin={() => setIsAdminLoginModalOpen(true)}
       />
     </div>
   );

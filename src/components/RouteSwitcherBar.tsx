@@ -123,19 +123,21 @@ export const RouteSwitcherBar: React.FC<RouteSwitcherBarProps> = ({
             )}
           </button>
 
-          {/* Sole Merchant Portal /merchant-login */}
-          <button
-            onClick={() => onNavigate('merchant-login')}
-            className={`px-3 py-1 rounded-lg text-xs font-medium flex items-center gap-1 transition-all cursor-pointer ${
-              currentRoute === 'merchant-login'
-                ? 'bg-blue-600 text-white font-bold shadow-xs'
-                : 'bg-[#241F1B] text-blue-300 hover:bg-[#342D27] hover:text-blue-200 border border-blue-900/50'
-            }`}
-            title="Sole Merchant Portal: View customer orders & product management (Path: /merchant-login)"
-          >
-            <UserCheck className="w-3.5 h-3.5 text-blue-400" />
-            <span className="font-semibold">Merchant Portal (/merchant-login)</span>
-          </button>
+          {/* Sole Merchant Portal /merchant-login (Hidden on home page) */}
+          {currentRoute !== 'storefront' && (
+            <button
+              onClick={() => onNavigate('merchant-login')}
+              className={`px-3 py-1 rounded-lg text-xs font-medium flex items-center gap-1 transition-all cursor-pointer ${
+                currentRoute === 'merchant-login'
+                  ? 'bg-blue-600 text-white font-bold shadow-xs'
+                  : 'bg-[#241F1B] text-blue-300 hover:bg-[#342D27] hover:text-blue-200 border border-blue-900/50'
+              }`}
+              title="Sole Merchant Portal: View customer orders & product management (Path: /merchant-login)"
+            >
+              <UserCheck className="w-3.5 h-3.5 text-blue-400" />
+              <span className="font-semibold">Merchant Portal (/merchant-login)</span>
+            </button>
+          )}
 
           {/* Minimize toggle */}
           <button
