@@ -1,0 +1,7 @@
+{
+  "name": "BEAUTY SPHERE SHOP",
+  "description": "Luxury Korean & Chinese boutique skincare and beauty platform featuring authentic K-Beauty & C-Beauty formulations, Hanbang herbal science, imperial silk cosmetics, seamless checkout, and direct merchant controls.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
