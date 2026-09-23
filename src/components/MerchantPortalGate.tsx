@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { UserCheck, Shield, KeyRound, ArrowLeft, Lock, AlertCircle, Sparkles, ShoppingBag, Eye, EyeOff } from 'lucide-react';
-import { authenticateMerchantModerator, getMerchantUser } from '../utils/auth';
+import { UserCheck, Shield, KeyRound, ArrowLeft, Lock, AlertCircle, ShoppingBag, Eye, EyeOff } from 'lucide-react';
+import { authenticateMerchantModeratorAsync } from '../utils/auth';
 import { AuthUser, UserRole } from '../types';
 
 interface MerchantPortalGateProps {
@@ -14,21 +14,19 @@ export const MerchantPortalGate: React.FC<MerchantPortalGateProps> = ({
   onNavigateHome,
   onNavigateAdmin,
 }) => {
-  const currentMerchant = getMerchantUser();
-  const [identifier, setIdentifier] = useState(currentMerchant?.username || 'merchant@beautysphere.com');
-  const [password, setPassword] = useState(currentMerchant?.passwordChangedAt ? '' : 'merchant2026');
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
-  const [copiedQuick, setCopiedQuick] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
     setIsVerifying(true);
 
-    setTimeout(() => {
-      const res = authenticateMerchantModerator(identifier, password);
+    try {
+      const res = await authenticateMerchantModeratorAsync(identifier, password);
       setIsVerifying(false);
 
       if (res.success && res.user && res.role) {
@@ -36,20 +34,9 @@ export const MerchantPortalGate: React.FC<MerchantPortalGateProps> = ({
       } else {
         setErrorMessage(res.error || 'Authentication failed. Only authorized Merchant / Moderator can log in.');
       }
-    }, 250);
-  };
-
-  const handleQuickFill = () => {
-    const merchant = getMerchantUser();
-    setIdentifier(merchant?.username || 'merchant@beautysphere.com');
-    if (merchant?.passwordChangedAt) {
-      setPassword('');
-      setCopiedQuick(true);
-      setTimeout(() => setCopiedQuick(false), 3000);
-    } else {
-      setPassword('merchant2026');
-      setCopiedQuick(true);
-      setTimeout(() => setCopiedQuick(false), 2000);
+    } catch (err: any) {
+      setIsVerifying(false);
+      setErrorMessage(err?.message || 'Server authentication error occurred.');
     }
   };
 
@@ -67,8 +54,8 @@ export const MerchantPortalGate: React.FC<MerchantPortalGateProps> = ({
           <ArrowLeft className="w-3.5 h-3.5" />
           <span>Return to Storefront</span>
         </button>
-        <span className="font-mono text-[11px] px-2 py-0.5 bg-blue-950/80 border border-blue-800 rounded text-blue-300 font-bold">
-          Path: /merchant-login
+        <span className="font-mono text-[11px] px-2.5 py-0.5 bg-blue-950/80 border border-blue-800 rounded text-blue-300 font-bold">
+          URL: /merchant
         </span>
       </div>
 
@@ -83,47 +70,15 @@ export const MerchantPortalGate: React.FC<MerchantPortalGateProps> = ({
           <div className="space-y-1">
             <div className="inline-flex items-center gap-1 px-3 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-300 text-[10px] font-bold uppercase tracking-wider">
               <Shield className="w-3 h-3 text-blue-400" />
-              <span>Moderator & Operator Console</span>
+              <span>Merchant / Moderator Console</span>
             </div>
             <h1 className="font-serif-luxury text-2xl font-bold tracking-wide text-white">
-              Sole Merchant Portal
+              Merchant Portal Login
             </h1>
             <p className="text-xs text-blue-200/80 leading-relaxed">
-              Dedicated portal for store moderators to view customer orders and handle product formulations without full site admin privileges.
+              Authorized operators only. Please sign in with your merchant credentials.
             </p>
           </div>
-        </div>
-
-        {/* Scope Highlights & Privacy Notice */}
-        <div className="bg-[#18233C] p-3.5 rounded-2xl border border-blue-900 text-xs space-y-2">
-          <div className="p-2 bg-blue-950/60 border border-blue-800/60 rounded-xl text-[11px] text-blue-200/90 leading-snug">
-            <strong className="text-blue-300 block font-semibold mb-0.5">
-              🛡️ Private Console — Authorized Personnel & Moderator Only
-            </strong>
-            This area is strictly confidential. Public customers cannot access customer order shipping slips, artisan supplier details, or merchant controls.
-          </div>
-
-          <span className="font-bold text-[10px] uppercase tracking-wider text-blue-300 block pt-1">
-            Merchant Access Scope:
-          </span>
-          <ul className="space-y-1 text-blue-100/80 text-[11px]">
-            <li className="flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
-              <span>View & Fulfill Live Customer Orders</span>
-            </li>
-            <li className="flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
-              <span>Manage Product Formulations Catalog & Stock Status</span>
-            </li>
-            <li className="flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
-              <span>Manage Artisan Houses & Moderate Customer Reviews</span>
-            </li>
-            <li className="flex items-center gap-1.5 text-amber-300/90 font-medium pt-1">
-              <Lock className="w-3 h-3 text-amber-400 shrink-0" />
-              <span>Restricted from site root URL & user role administration</span>
-            </li>
-          </ul>
         </div>
 
         {/* Error Alert */}
@@ -134,34 +89,36 @@ export const MerchantPortalGate: React.FC<MerchantPortalGateProps> = ({
           </div>
         )}
 
-        {/* Login Form */}
+        {/* Login Form - Displays clean empty fields only */}
         <form onSubmit={handleLogin} className="space-y-4 text-xs">
           <div>
             <label className="block font-medium text-blue-200 mb-1">
-              Merchant / Moderator Identifier:
+              Email or Username:
             </label>
             <input
               type="text"
               required
+              id="merchant-login-identifier"
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
-              placeholder="e.g. merchant@beautysphere.com"
-              className="w-full px-3.5 py-2.5 bg-[#18233C] border border-blue-800 rounded-xl text-white focus:outline-none focus:ring-1 focus:ring-blue-400 font-medium"
+              placeholder="Enter merchant email or username"
+              className="w-full px-3.5 py-2.5 bg-[#18233C] border border-blue-800 rounded-xl text-white placeholder-blue-400/50 focus:outline-none focus:ring-1 focus:ring-blue-400 font-medium"
             />
           </div>
 
           <div>
             <label className="block font-medium text-blue-200 mb-1">
-              Merchant Password:
+              Password:
             </label>
             <div className="relative">
               <input
                 type={showPassword ? 'text' : 'password'}
                 required
+                id="merchant-login-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full px-3.5 py-2.5 bg-[#18233C] border border-blue-800 rounded-xl text-white focus:outline-none focus:ring-1 focus:ring-blue-400 font-mono pr-10"
+                placeholder="Enter your password"
+                className="w-full px-3.5 py-2.5 bg-[#18233C] border border-blue-800 rounded-xl text-white placeholder-blue-400/50 focus:outline-none focus:ring-1 focus:ring-blue-400 font-mono pr-10"
               />
               <button
                 type="button"
@@ -174,30 +131,14 @@ export const MerchantPortalGate: React.FC<MerchantPortalGateProps> = ({
             </div>
           </div>
 
-          {/* Quick-Fill Helper */}
-          <div className="flex items-center justify-between pt-1">
-            <button
-              type="button"
-              onClick={handleQuickFill}
-              className="text-[11px] text-blue-300 hover:underline flex items-center gap-1 cursor-pointer"
-            >
-              <Sparkles className="w-3 h-3" />
-              <span>
-                {copiedQuick
-                  ? (currentMerchant?.passwordChangedAt ? `Set to ${currentMerchant.username} (Enter your custom password)` : 'Credentials Applied!')
-                  : `Fill Current Merchant (${currentMerchant?.username || 'merchant@beautysphere.com'})`}
-              </span>
-            </button>
-            <span className="text-[10px] text-blue-400/60 font-mono">BCrypt Protected</span>
-          </div>
-
           <button
             type="submit"
+            id="merchant-login-submit-btn"
             disabled={isVerifying}
             className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
           >
             <KeyRound className="w-4 h-4" />
-            <span>{isVerifying ? 'Verifying Merchant Credentials...' : 'Sign In as Sole Merchant'}</span>
+            <span>{isVerifying ? 'Authenticating...' : 'Sign In to Merchant Portal'}</span>
           </button>
         </form>
 

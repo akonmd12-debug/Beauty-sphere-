@@ -104,9 +104,28 @@ export interface Order {
   shippingFee: number;
   tax: number;
   total: number;
-  status: 'Pending' | 'Confirmed' | 'Dispatched' | 'Delivered';
+  status: 'Pending' | 'Confirmed' | 'Dispatched' | 'Shipped' | 'Delivered';
   paymentMethod: string;
   notes?: string;
+  trackingNumber?: string;
+  carrier?: string;
+}
+
+export interface MockEmailNotification {
+  id: string;
+  orderId: string;
+  orderNumber: string;
+  recipientEmail: string;
+  recipientName: string;
+  recipientPhone: string;
+  recipientAddress: string;
+  statusTrigger: 'Shipped' | 'Dispatched' | 'Delivered';
+  subject: string;
+  trackingNumber: string;
+  carrier: string;
+  sentAt: string;
+  items: OrderItem[];
+  total: number;
 }
 
 export interface CustomerAccount {

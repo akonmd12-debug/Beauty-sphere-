@@ -584,6 +584,7 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({
                   <option value="all">All Order Statuses</option>
                   <option value="Pending">Pending</option>
                   <option value="Confirmed">Confirmed</option>
+                  <option value="Shipped">Shipped</option>
                   <option value="Dispatched">Dispatched</option>
                   <option value="Delivered">Delivered</option>
                 </select>
@@ -717,6 +718,7 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({
                             >
                               <option value="Pending">Pending</option>
                               <option value="Confirmed">Confirmed</option>
+                              <option value="Shipped">Shipped</option>
                               <option value="Dispatched">Dispatched</option>
                               <option value="Delivered">Delivered</option>
                             </select>

@@ -306,17 +306,7 @@ export const AdminProfileModal: React.FC<AdminProfileModalProps> = ({
                 </div>
               </div>
 
-              <div className="flex items-center justify-between text-[11px] text-[#7A7066]">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEnteredPassword('00998877');
-                    setUnlockError(null);
-                  }}
-                  className="text-[#8C6B3E] hover:text-[#1A1817] underline font-medium cursor-pointer"
-                >
-                  ⚡ Owner Auto-fill (00998877)
-                </button>
+              <div className="flex items-center justify-end text-[11px] text-[#7A7066]">
                 <span className="text-[#8F8479]">Account: akonmd12@gmail.com</span>
               </div>
 
@@ -657,16 +647,6 @@ export const AdminProfileModal: React.FC<AdminProfileModalProps> = ({
                       >
                         {showPasswordText ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
                         <span>{showPasswordText ? 'Hide Characters' : 'Show Characters'}</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setOldPassword(getStoredAdminPassword());
-                        }}
-                        className="text-[#8C6B3E] hover:underline cursor-pointer"
-                      >
-                        ⚡ Fill Current
                       </button>
 
                       <button

@@ -10,20 +10,18 @@ import {
   KeyRound, 
   RefreshCw, 
   UserCheck, 
-  Database, 
   Shield, 
   HelpCircle,
-  ChevronDown,
-  ChevronUp,
   Cpu
 } from 'lucide-react';
 import { AuthUser, UserRole } from '../types';
 import { 
   authenticateAdmin, 
   authenticateMerchantModerator, 
+  authenticateAdminAsync,
+  authenticateMerchantModeratorAsync,
   changeUserPassword, 
   getDatabaseUsers, 
-  DATABASE_SCHEMA_METADATA,
   getAdminUser,
   getMerchantUser
 } from '../utils/auth';
@@ -49,19 +47,16 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
     initialRole === 'merchant_moderator' ? 'merchant_moderator' : 'admin'
   );
   
-  // Modes: 'login' | 'change-password' | 'schema-info'
+  // Modes: 'login' | 'change-password'
   const [mode, setMode] = useState<'login' | 'change-password'>('login');
-  const [showSchemaDrawer, setShowSchemaDrawer] = useState(false);
 
-  // Admin login credentials
-  const currentAdmin = getAdminUser();
-  const currentMerchant = getMerchantUser();
-  const [adminUsername, setAdminUsername] = useState(currentAdmin?.username || 'akonmd12@gmail.com');
+  // Admin login credentials (empty by default)
+  const [adminUsername, setAdminUsername] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
   const [showAdminPassword, setShowAdminPassword] = useState(false);
 
-  // Merchant / Moderator login credentials
-  const [merchantUsername, setMerchantUsername] = useState(currentMerchant?.username || 'merchant@beautysphere.com');
+  // Merchant / Moderator login credentials (empty by default)
+  const [merchantUsername, setMerchantUsername] = useState('');
   const [merchantPassword, setMerchantPassword] = useState('');
   const [showMerchantPassword, setShowMerchantPassword] = useState(false);
 
@@ -89,15 +84,15 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
     }
   };
 
-  // Submit Admin Login
-  const handleAdminLoginSubmit = (e: React.FormEvent) => {
+  // Submit Admin Login (Server-Side BCrypt Validation)
+  const handleAdminLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSuccessMessage(null);
     setIsSubmitting(true);
 
-    setTimeout(() => {
-      const result = authenticateAdmin(adminUsername, adminPassword);
+    try {
+      const result = await authenticateAdminAsync(adminUsername, adminPassword);
       setIsSubmitting(false);
 
       if (result.success && result.user) {
@@ -109,18 +104,21 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
       } else {
         setError(result.error || 'Administrator login failed. Passwords are encrypted using bcrypt.');
       }
-    }, 250);
+    } catch (err: any) {
+      setIsSubmitting(false);
+      setError(err?.message || 'Server validation error occurred.');
+    }
   };
 
-  // Submit Merchant / Moderator Login
-  const handleMerchantLoginSubmit = (e: React.FormEvent) => {
+  // Submit Merchant / Moderator Login (Server-Side BCrypt Validation)
+  const handleMerchantLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSuccessMessage(null);
     setIsSubmitting(true);
 
-    setTimeout(() => {
-      const result = authenticateMerchantModerator(merchantUsername, merchantPassword);
+    try {
+      const result = await authenticateMerchantModeratorAsync(merchantUsername, merchantPassword);
       setIsSubmitting(false);
 
       if (result.success && result.user) {
@@ -132,7 +130,10 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
       } else {
         setError(result.error || 'Merchant/Moderator login failed. Passwords are encrypted using bcrypt.');
       }
-    }, 250);
+    } catch (err: any) {
+      setIsSubmitting(false);
+      setError(err?.message || 'Server validation error occurred.');
+    }
   };
 
   // Submit Change Password with BCrypt encryption
@@ -289,19 +290,9 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
           {/* ========================================================= */}
           {mode === 'login' && selectedRole === 'admin' && (
             <form onSubmit={handleAdminLoginSubmit} className="space-y-4">
-              <div className="p-3 bg-amber-50/70 border border-amber-200/80 rounded-xl text-xs text-amber-900 flex items-start gap-2.5">
-                <ShieldCheck className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
-                <div className="space-y-0.5">
-                  <span className="font-bold block">Role: Master Administrator</span>
-                  <span className="text-[11px] text-amber-800/90 block">
-                    Requires unique Admin username. All passwords verified with 10-round bcrypt hash comparison.
-                  </span>
-                </div>
-              </div>
-
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-[#4A423A] mb-1">
-                  Admin Username or Email <span className="text-red-500">*</span>
+                  Email or Username <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -309,7 +300,7 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
                   id="admin-username-input"
                   value={adminUsername}
                   onChange={(e) => setAdminUsername(e.target.value)}
-                  placeholder="akonmd12@gmail.com"
+                  placeholder="Enter admin email or username"
                   className="w-full px-3.5 py-2.5 text-sm bg-white border border-[#D5CABE] rounded-xl text-[#1A1817] placeholder-[#9E948A] focus:outline-none focus:border-[#1F1B18] focus:ring-1 focus:ring-[#1F1B18]"
                 />
               </div>
@@ -317,7 +308,7 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="block text-xs font-semibold uppercase tracking-wider text-[#4A423A]">
-                    Admin Password <span className="text-red-500">*</span>
+                    Password <span className="text-red-500">*</span>
                   </label>
                   <button
                     type="button"
@@ -343,7 +334,7 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
                       setAdminPassword(e.target.value);
                       if (error) setError(null);
                     }}
-                    placeholder="Enter administrator password..."
+                    placeholder="Enter password"
                     className="w-full pl-3.5 pr-10 py-2.5 text-sm bg-white border border-[#D5CABE] rounded-xl text-[#1A1817] placeholder-[#9E948A] focus:outline-none focus:border-[#1F1B18] focus:ring-1 focus:ring-[#1F1B18]"
                   />
                   <button
@@ -352,21 +343,6 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7A7066] hover:text-black p-1 cursor-pointer"
                   >
                     {showAdminPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-
-                <div className="flex items-center justify-between mt-2 text-[11px]">
-                  <button
-                    type="button"
-                    id="autofill-admin-credentials-btn"
-                    onClick={() => {
-                      setAdminUsername('akonmd12@gmail.com');
-                      setAdminPassword('00998877');
-                      setError(null);
-                    }}
-                    className="text-[#8C6B3E] hover:text-[#1A1817] underline font-medium cursor-pointer"
-                  >
-                    ⚡ Auto-fill Admin Credentials (akonmd12@gmail.com / 00998877)
                   </button>
                 </div>
               </div>
@@ -378,7 +354,7 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
                 className="w-full py-3 px-4 bg-[#1F1B18] hover:bg-[#342E29] text-white text-xs font-semibold uppercase tracking-[0.18em] rounded-xl flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
               >
                 {isSubmitting ? (
-                  <span>Verifying BCrypt Hash...</span>
+                  <span>Authenticating...</span>
                 ) : (
                   <>
                     <Shield className="w-4 h-4 text-[#D4AF37]" />
@@ -394,19 +370,9 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
           {/* ========================================================= */}
           {mode === 'login' && selectedRole === 'merchant_moderator' && (
             <form onSubmit={handleMerchantLoginSubmit} className="space-y-4">
-              <div className="p-3 bg-blue-50/70 border border-blue-200/80 rounded-xl text-xs text-blue-900 flex items-start gap-2.5">
-                <UserCheck className="w-4 h-4 text-blue-700 shrink-0 mt-0.5" />
-                <div className="space-y-0.5">
-                  <span className="font-bold block">Role: Sole Merchant / Moderator</span>
-                  <span className="text-[11px] text-blue-800/90 block">
-                    Specific operator credentials. Manages catalog inventory, order processing & content moderation.
-                  </span>
-                </div>
-              </div>
-
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-[#4A423A] mb-1">
-                  Merchant / Moderator Username or Email <span className="text-red-500">*</span>
+                  Email or Username <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -414,7 +380,7 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
                   id="merchant-username-input"
                   value={merchantUsername}
                   onChange={(e) => setMerchantUsername(e.target.value)}
-                  placeholder="merchant@beautysphere.com"
+                  placeholder="Enter merchant email or username"
                   className="w-full px-3.5 py-2.5 text-sm bg-white border border-[#D5CABE] rounded-xl text-[#1A1817] placeholder-[#9E948A] focus:outline-none focus:border-[#1F1B18] focus:ring-1 focus:ring-[#1F1B18]"
                 />
               </div>
@@ -422,7 +388,7 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="block text-xs font-semibold uppercase tracking-wider text-[#4A423A]">
-                    Merchant / Moderator Password <span className="text-red-500">*</span>
+                    Password <span className="text-red-500">*</span>
                   </label>
                   <button
                     type="button"
@@ -448,7 +414,7 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
                       setMerchantPassword(e.target.value);
                       if (error) setError(null);
                     }}
-                    placeholder="Enter merchant / moderator password..."
+                    placeholder="Enter password"
                     className="w-full pl-3.5 pr-10 py-2.5 text-sm bg-white border border-[#D5CABE] rounded-xl text-[#1A1817] placeholder-[#9E948A] focus:outline-none focus:border-[#1F1B18] focus:ring-1 focus:ring-[#1F1B18]"
                   />
                   <button
@@ -457,21 +423,6 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7A7066] hover:text-black p-1 cursor-pointer"
                   >
                     {showMerchantPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-
-                <div className="flex items-center justify-between mt-2 text-[11px]">
-                  <button
-                    type="button"
-                    id="autofill-merchant-credentials-btn"
-                    onClick={() => {
-                      setMerchantUsername('merchant@beautysphere.com');
-                      setMerchantPassword('merchant2026');
-                      setError(null);
-                    }}
-                    className="text-[#8C6B3E] hover:text-[#1A1817] underline font-medium cursor-pointer"
-                  >
-                    ⚡ Auto-fill Merchant Credentials (merchant@beautysphere.com / merchant2026)
                   </button>
                 </div>
               </div>
@@ -614,48 +565,6 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
               </div>
             </form>
           )}
-
-          {/* ========================================================= */}
-          {/* DATABASE SCHEMA & ROLES ACCORDION */}
-          {/* ========================================================= */}
-          <div className="border-t border-[#EAE3D8] pt-3">
-            <button
-              type="button"
-              onClick={() => setShowSchemaDrawer(!showSchemaDrawer)}
-              className="w-full flex items-center justify-between text-xs text-[#7A7066] hover:text-[#1A1817] font-semibold py-1.5 px-2 rounded-lg hover:bg-gray-100/70 transition-colors cursor-pointer"
-            >
-              <div className="flex items-center gap-2">
-                <Database className="w-3.5 h-3.5 text-emerald-600" />
-                <span>View Database Schema & Role Specifications</span>
-              </div>
-              {showSchemaDrawer ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-            </button>
-
-            {showSchemaDrawer && (
-              <div className="mt-2 p-3 bg-white rounded-xl border border-gray-200 text-xs space-y-3 animate-fadeIn">
-                <div className="flex items-center justify-between text-[11px] text-gray-500 border-b border-gray-100 pb-2">
-                  <span>Encryption: <strong>BCrypt Blowfish (10 rounds)</strong></span>
-                  <span>Schema Version: <strong>3.0.0</strong></span>
-                </div>
-
-                {DATABASE_SCHEMA_METADATA.roles.map((r) => (
-                  <div key={r.role} className="p-2.5 bg-gray-50 rounded-lg border border-gray-100 space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-gray-900">{r.label}</span>
-                      <span className="text-[10px] px-2 py-0.5 rounded-md font-mono bg-gray-200 text-gray-800">
-                        role: '{r.role}'
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-gray-600">{r.description}</p>
-                    <div className="grid grid-cols-2 gap-1 text-[10px] text-gray-500 pt-1">
-                      <div>User: <code className="text-gray-800 font-semibold">{r.defaultUsername}</code></div>
-                      <div>Pass: <code className="text-gray-800 font-semibold">{r.defaultPlainPassword}</code></div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
 
           {/* Back to storefront link */}
           <div className="text-center pt-1">

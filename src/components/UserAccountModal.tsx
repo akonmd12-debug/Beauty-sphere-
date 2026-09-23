@@ -22,10 +22,14 @@ import {
   Truck,
   Search,
   Clock,
-  AlertCircle
+  AlertCircle,
+  CheckCircle2,
+  Filter,
+  RotateCcw
 } from 'lucide-react';
 import { CustomerAccount, Order, Product } from '../types';
 import { formatCurrency } from '../utils/storage';
+import { useLanguage } from '../context/LanguageContext';
 
 interface UserAccountModalProps {
   isOpen: boolean;
@@ -54,6 +58,7 @@ export const UserAccountModal: React.FC<UserAccountModalProps> = ({
   onRemoveFromWishlist,
   websiteUrl,
 }) => {
+  const { language, setLanguage, toggleLanguage, t, isBangla } = useLanguage();
   const [activeTab, setActiveTab] = useState<'profile' | 'orders' | 'tracking' | 'wishlist' | 'website-link'>(
     (initialTab as any) || 'profile'
   );
@@ -64,12 +69,123 @@ export const UserAccountModal: React.FC<UserAccountModalProps> = ({
   const [showQr, setShowQr] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
+  // My Orders Filtering & Search State
+  const [orderFilterStatus, setOrderFilterStatus] = useState<string>('all');
+  const [orderSearchText, setOrderSearchText] = useState<string>('');
+  const [orderScope, setOrderScope] = useState<'mine' | 'all'>('mine');
+  const [copiedOrderRef, setCopiedOrderRef] = useState<string | null>(null);
+
   // Customer form state
   const [formData, setFormData] = useState<CustomerAccount>({ ...customerAccount });
 
   if (!isOpen) return null;
 
   const currentSiteUrl = websiteUrl || (typeof window !== 'undefined' ? window.location.href : 'https://beautysphereshop.com');
+
+  const handleCopyOrderRef = (ref: string) => {
+    navigator.clipboard.writeText(ref);
+    setCopiedOrderRef(ref);
+    setTimeout(() => setCopiedOrderRef(null), 2000);
+  };
+
+  const userEmail = (formData.email || customerAccount.email || '').trim().toLowerCase();
+  const userPhone = (formData.phone || customerAccount.phone || '').trim().replace(/[^0-9]/g, '');
+  const userName = (formData.fullName || customerAccount.fullName || '').trim().toLowerCase();
+
+  const isUserOrder = (order: Order) => {
+    const oEmail = (order.customer?.email || '').trim().toLowerCase();
+    const oPhone = (order.customer?.phone || '').trim().replace(/[^0-9]/g, '');
+    const oName = (order.customer?.fullName || '').trim().toLowerCase();
+
+    if (userEmail && oEmail && oEmail === userEmail) return true;
+    if (userPhone && oPhone && (oPhone.includes(userPhone) || userPhone.includes(oPhone))) return true;
+    if (userName && oName && oName === userName) return true;
+    return false;
+  };
+
+  const userMatchedOrders = orders.filter(isUserOrder);
+  const hasMatchedOrders = userMatchedOrders.length > 0;
+
+  const ordersToDisplay = (orderScope === 'mine' && hasMatchedOrders)
+    ? userMatchedOrders
+    : orders;
+
+  const filteredOrders = ordersToDisplay.filter((order) => {
+    if (orderFilterStatus !== 'all' && order.status !== orderFilterStatus) {
+      return false;
+    }
+    if (orderSearchText.trim()) {
+      const q = orderSearchText.trim().toLowerCase();
+      const matchNum = order.orderNumber.toLowerCase().includes(q);
+      const matchTrack = (order.trackingNumber || '').toLowerCase().includes(q);
+      const matchCarrier = (order.carrier || '').toLowerCase().includes(q);
+      const matchItem = order.items.some(
+        (it) => it.productName.toLowerCase().includes(q) || it.producer.toLowerCase().includes(q)
+      );
+      if (!matchNum && !matchTrack && !matchCarrier && !matchItem) {
+        return false;
+      }
+    }
+    return true;
+  });
+
+  const getStatusBadge = (status: Order['status']) => {
+    switch (status) {
+      case 'Pending':
+        return {
+          bg: 'bg-amber-50 text-amber-800 border-amber-200',
+          dot: 'bg-amber-500',
+          label: t('status.pending', 'Pending'),
+          icon: <Clock className="w-3.5 h-3.5 text-amber-600" />
+        };
+      case 'Confirmed':
+        return {
+          bg: 'bg-blue-50 text-blue-800 border-blue-200',
+          dot: 'bg-blue-500',
+          label: t('status.confirmed', 'Confirmed'),
+          icon: <CheckCircle2 className="w-3.5 h-3.5 text-blue-600" />
+        };
+      case 'Shipped':
+        return {
+          bg: 'bg-purple-50 text-purple-800 border-purple-200',
+          dot: 'bg-purple-500 animate-pulse',
+          label: t('status.shipped', 'Shipped'),
+          icon: <Truck className="w-3.5 h-3.5 text-purple-600" />
+        };
+      case 'Dispatched':
+        return {
+          bg: 'bg-sky-50 text-sky-800 border-sky-200',
+          dot: 'bg-sky-500 animate-pulse',
+          label: t('status.dispatched', 'Dispatched'),
+          icon: <Truck className="w-3.5 h-3.5 text-sky-600" />
+        };
+      case 'Delivered':
+        return {
+          bg: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+          dot: 'bg-emerald-500',
+          label: t('status.delivered', 'Delivered'),
+          icon: <Package className="w-3.5 h-3.5 text-emerald-600" />
+        };
+      default:
+        return {
+          bg: 'bg-gray-50 text-gray-800 border-gray-200',
+          dot: 'bg-gray-400',
+          label: status,
+          icon: <Clock className="w-3.5 h-3.5" />
+        };
+    }
+  };
+
+  const getStatusStepIndex = (status: Order['status']): number => {
+    switch (status) {
+      case 'Pending': return 1;
+      case 'Confirmed': return 2;
+      case 'Shipped':
+      case 'Dispatched': return 3;
+      case 'Delivered': return 4;
+      default: return 1;
+    }
+  };
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(currentSiteUrl);
@@ -132,60 +248,20 @@ export const UserAccountModal: React.FC<UserAccountModalProps> = ({
               <button
                 id="customer-tab-profile"
                 onClick={() => setActiveTab('profile')}
-                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left transition-all ${
+                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left transition-all cursor-pointer ${
                   activeTab === 'profile'
                     ? 'bg-[#1F1B18] text-white font-medium shadow-2xs'
                     : 'text-[#5A5148] hover:bg-[#F5EFE9]'
                 }`}
               >
                 <User className="w-4 h-4 text-[#D4AF37]" />
-                <span>My Details & Address</span>
-              </button>
-
-              <button
-                id="customer-tab-wishlist"
-                onClick={() => setActiveTab('wishlist')}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left transition-all ${
-                  activeTab === 'wishlist'
-                    ? 'bg-[#1F1B18] text-white font-medium shadow-2xs'
-                    : 'text-[#5A5148] hover:bg-[#F5EFE9]'
-                }`}
-              >
-                <div className="flex items-center gap-2.5">
-                  <Heart className="w-4 h-4 text-rose-500" />
-                  <span>Saved Wishlist</span>
-                </div>
-                {wishlistProducts.length > 0 && (
-                  <span className="text-[10px] font-bold bg-[#EAE3D8] text-[#4A423A] px-2 py-0.5 rounded-full">
-                    {wishlistProducts.length}
-                  </span>
-                )}
-              </button>
-
-              <button
-                id="customer-tab-tracking"
-                onClick={() => {
-                  setActiveTab('tracking');
-                }}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left transition-all ${
-                  activeTab === 'tracking'
-                    ? 'bg-[#1F1B18] text-white font-medium shadow-2xs'
-                    : 'text-[#5A5148] hover:bg-[#F5EFE9]'
-                }`}
-              >
-                <div className="flex items-center gap-2.5">
-                  <Truck className="w-4 h-4 text-emerald-600" />
-                  <span>Track Specific Order</span>
-                </div>
-                <span className="text-[9px] font-bold bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded">
-                  Lookup
-                </span>
+                <span>{t('account.tab.profile', 'My Details & Address')}</span>
               </button>
 
               <button
                 id="customer-tab-orders"
                 onClick={() => setActiveTab('orders')}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left transition-all ${
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left transition-all cursor-pointer ${
                   activeTab === 'orders'
                     ? 'bg-[#1F1B18] text-white font-medium shadow-2xs'
                     : 'text-[#5A5148] hover:bg-[#F5EFE9]'
@@ -193,7 +269,7 @@ export const UserAccountModal: React.FC<UserAccountModalProps> = ({
               >
                 <div className="flex items-center gap-2.5">
                   <Package className="w-4 h-4 text-[#8C6B3E]" />
-                  <span>My Orders & History</span>
+                  <span>{t('account.tab.orders', 'My Orders')}</span>
                 </div>
                 {orders.length > 0 && (
                   <span className="text-[10px] font-bold bg-[#D4AF37] text-[#1F1B18] px-2 py-0.5 rounded-full">
@@ -203,9 +279,47 @@ export const UserAccountModal: React.FC<UserAccountModalProps> = ({
               </button>
 
               <button
+                id="customer-tab-tracking"
+                onClick={() => setActiveTab('tracking')}
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left transition-all cursor-pointer ${
+                  activeTab === 'tracking'
+                    ? 'bg-[#1F1B18] text-white font-medium shadow-2xs'
+                    : 'text-[#5A5148] hover:bg-[#F5EFE9]'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <Truck className="w-4 h-4 text-emerald-600" />
+                  <span>{t('account.tab.tracking', 'Track Specific Order')}</span>
+                </div>
+                <span className="text-[9px] font-bold bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded">
+                  {isBangla ? 'অনুসন্ধান' : 'Lookup'}
+                </span>
+              </button>
+
+              <button
+                id="customer-tab-wishlist"
+                onClick={() => setActiveTab('wishlist')}
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left transition-all cursor-pointer ${
+                  activeTab === 'wishlist'
+                    ? 'bg-[#1F1B18] text-white font-medium shadow-2xs'
+                    : 'text-[#5A5148] hover:bg-[#F5EFE9]'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <Heart className="w-4 h-4 text-rose-500" />
+                  <span>{t('account.tab.wishlist', 'Saved Wishlist')}</span>
+                </div>
+                {wishlistProducts.length > 0 && (
+                  <span className="text-[10px] font-bold bg-[#EAE3D8] text-[#4A423A] px-2 py-0.5 rounded-full">
+                    {wishlistProducts.length}
+                  </span>
+                )}
+              </button>
+
+              <button
                 id="customer-tab-share"
                 onClick={() => setActiveTab('website-link')}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left transition-all ${
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left transition-all cursor-pointer ${
                   activeTab === 'website-link'
                     ? 'bg-[#1F1B18] text-white font-medium shadow-2xs'
                     : 'text-[#5A5148] hover:bg-[#F5EFE9]'
@@ -213,8 +327,46 @@ export const UserAccountModal: React.FC<UserAccountModalProps> = ({
               >
                 <div className="flex items-center gap-2.5">
                   <Globe className="w-4 h-4 text-[#5C534B]" />
-                  <span>Store Link & Share</span>
+                  <span>{t('account.tab.share', 'Store Link & Share')}</span>
                 </div>
+              </button>
+            </div>
+          </div>
+
+          {/* Language Switcher Option inside Sidebar Bottom */}
+          <div className="pt-4 border-t border-[#F0EAE1] mt-4">
+            <div className="flex items-center justify-between text-xs text-[#7A7066] mb-2 px-1">
+              <span className="text-[10px] uppercase font-bold tracking-wider flex items-center gap-1.5">
+                <Globe className="w-3 h-3 text-[#8C6B3E]" />
+                <span>{t('lang.switch', 'Language / ভাষা')}</span>
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-1.5 bg-[#F5EFE9] p-1 rounded-xl">
+              <button
+                type="button"
+                id="modal-lang-en-btn"
+                onClick={() => setLanguage('en')}
+                className={`py-1.5 px-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  language === 'en'
+                    ? 'bg-white text-[#1F1B18] shadow-xs border border-[#DDD5CA]'
+                    : 'text-[#7A7066] hover:text-[#1F1B18]'
+                }`}
+              >
+                <span>🇬🇧</span>
+                <span>English</span>
+              </button>
+              <button
+                type="button"
+                id="modal-lang-bn-btn"
+                onClick={() => setLanguage('bn')}
+                className={`py-1.5 px-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  language === 'bn'
+                    ? 'bg-white text-[#1F1B18] shadow-xs border border-[#DDD5CA]'
+                    : 'text-[#7A7066] hover:text-[#1F1B18]'
+                }`}
+              >
+                <span>🇧🇩</span>
+                <span>বাংলা</span>
               </button>
             </div>
           </div>
@@ -226,27 +378,43 @@ export const UserAccountModal: React.FC<UserAccountModalProps> = ({
           <div className="flex items-center justify-between pb-4 mb-6 border-b border-[#EAE3D8]">
             <div>
               <span className="text-[10px] uppercase font-bold tracking-[0.25em] text-[#8C6B3E]">
-                {activeTab === 'profile' && 'Customer Profile & Shipping'}
-                {activeTab === 'orders' && 'Client Order Center'}
-                {activeTab === 'tracking' && 'Live Delivery Tracking'}
-                {activeTab === 'wishlist' && 'Saved Formulations'}
-                {activeTab === 'website-link' && 'Boutique Public Link'}
+                {activeTab === 'profile' && (isBangla ? 'গ্রাহক তথ্য ও ডেলিভারি ঠিকানা' : 'Customer Profile & Shipping')}
+                {activeTab === 'orders' && (isBangla ? 'আমার অর্ডার পোর্টাল' : 'My Orders & Purchase Records')}
+                {activeTab === 'tracking' && (isBangla ? 'রিয়েল-টাইম ট্র্যাকিং' : 'Live Delivery Tracking')}
+                {activeTab === 'wishlist' && (isBangla ? 'সংরক্ষিত প্রসাধন' : 'Saved Formulations')}
+                {activeTab === 'website-link' && (isBangla ? 'স্টোর পাবলিক লিংক' : 'Boutique Public Link')}
               </span>
               <h2 className="font-serif-luxury text-2xl text-[#1A1817] font-medium mt-0.5">
-                {activeTab === 'profile' && 'Fast Checkout Profile'}
-                {activeTab === 'orders' && 'Your Order History'}
-                {activeTab === 'tracking' && 'Order Status Tracking'}
-                {activeTab === 'wishlist' && 'Your Saved Asian Formulations'}
-                {activeTab === 'website-link' && 'Official Boutique Link'}
+                {activeTab === 'profile' && (isBangla ? 'দ্রুত চেকআউট প্রোফাইল' : 'Fast Checkout Profile')}
+                {activeTab === 'orders' && (isBangla ? 'আমার অর্ডারসমূহ' : 'My Orders')}
+                {activeTab === 'tracking' && (isBangla ? 'অর্ডার স্ট্যাটাস সন্ধান' : 'Order Status Tracking')}
+                {activeTab === 'wishlist' && (isBangla ? 'আপনার পছন্দের প্রসাধনী তালিকা' : 'Your Saved Asian Formulations')}
+                {activeTab === 'website-link' && (isBangla ? 'অফিসিয়াল বুটিক লিঙ্ক' : 'Official Boutique Link')}
               </h2>
             </div>
 
-            <button
-              onClick={onClose}
-              className="p-1.5 text-[#736A61] hover:text-black hover:bg-[#F5EFE9] rounded-full transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            <div className="flex items-center gap-2">
+              {/* Language Switcher pill in header */}
+              <button
+                type="button"
+                id="modal-header-language-toggle"
+                onClick={toggleLanguage}
+                className="px-2.5 py-1 bg-white hover:bg-[#FAF5EE] border border-[#DDD5CA] hover:border-[#D4AF37] rounded-full text-xs font-semibold text-[#2B2623] transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                title={language === 'en' ? 'বাংলায় পরিবর্তন করুন' : 'Switch to English'}
+              >
+                <Globe className="w-3.5 h-3.5 text-[#8C6B3E]" />
+                <span className="text-[11px]">{language === 'en' ? 'বাংলা' : 'EN'}</span>
+              </button>
+
+              <button
+                id="close-user-account-modal-btn"
+                onClick={onClose}
+                className="p-1.5 text-[#736A61] hover:text-black hover:bg-[#F5EFE9] rounded-full transition-colors cursor-pointer"
+                aria-label="Close modal"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           </div>
 
           {/* TAB 1: CUSTOMER PROFILE & FAST CHECKOUT */}
@@ -396,94 +564,353 @@ export const UserAccountModal: React.FC<UserAccountModalProps> = ({
           {/* TAB 2: MY ORDERS & HISTORY */}
           {activeTab === 'orders' && (
             <div className="space-y-4">
+              {/* Header and Quick Lookup */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-[#F0EAE1] gap-2">
                 <div>
-                  <h3 className="font-serif-luxury text-lg text-[#1A1817]">My Orders & History</h3>
+                  <h3 className="font-serif-luxury text-lg text-[#1A1817] flex items-center gap-2">
+                    <Package className="w-5 h-5 text-[#8C6B3E]" />
+                    <span>{t('orders.title', 'My Orders & Purchase Records')}</span>
+                  </h3>
                   <p className="text-xs text-[#7A7169]">
-                    Review your order items, delivery addresses, and real-time logistics status.
+                    {t('orders.description', 'Review your past order status, items, delivery details, and total amount.')}
                   </p>
                 </div>
                 <button
+                  id="my-orders-lookup-tracking-btn"
                   onClick={() => setActiveTab('tracking')}
-                  className="px-3 py-1.5 bg-[#FAF5EE] hover:bg-[#F0E6D8] border border-[#DDD3C7] text-[#1F1B18] text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer self-start sm:self-auto"
+                  className="px-3 py-1.5 bg-[#FAF5EE] hover:bg-[#F0E6D8] border border-[#DDD3C7] text-[#1F1B18] text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer self-start sm:self-auto shadow-2xs"
                 >
                   <Search className="w-3.5 h-3.5 text-[#D4AF37]" />
-                  <span>Lookup by Tracking #</span>
+                  <span>{isBangla ? 'ট্র্যাকিং নম্বর দিয়ে খুঁজুন' : 'Lookup by Tracking #'}</span>
                 </button>
               </div>
 
-              {orders.length === 0 ? (
-                <div className="p-8 bg-white border border-[#E8DFD3] rounded-xl text-center text-[#736B63] space-y-3">
-                  <Package className="w-10 h-10 mx-auto text-[#B8ADA2]" />
-                  <p className="font-serif-luxury text-base text-[#1A1817]">No Orders Placed Yet</p>
-                  <p className="text-xs text-[#8C8075] max-w-sm mx-auto">
-                    Customer orders placed through our checkout will appear here with live tracking.
-                  </p>
-                  <button
-                    onClick={() => setActiveTab('tracking')}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#1F1B18] hover:bg-[#38312B] text-white text-xs font-semibold rounded-xl transition-all cursor-pointer"
-                  >
-                    <Truck className="w-3.5 h-3.5 text-[#D4AF37]" />
-                    <span>Track Order by Number</span>
-                  </button>
-                </div>
-              ) : (
-                orders.map((order) => (
-                  <div key={order.id} className="bg-white border border-[#E8DFD3] rounded-xl p-5 shadow-2xs space-y-3">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-[#F0EAE1] gap-2">
-                      <div>
-                        <span className="text-[10px] uppercase font-semibold text-[#8C8075] tracking-wider">
-                          Tracking Reference
-                        </span>
-                        <p className="font-mono text-sm font-bold text-[#1A1817]">{order.orderNumber}</p>
-                        <p className="text-[11px] text-[#7A7169]">
-                          {new Date(order.createdAt).toLocaleDateString('en-US', {
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric',
-                          })}
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800">
-                          ● {order.status}
-                        </span>
-                        <span className="text-sm font-bold text-[#1A1817]">{formatCurrency(order.total)}</span>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      {order.items.map((item, idx) => (
-                        <div key={idx} className="flex items-center justify-between text-xs">
-                          <span className="text-[#3A332E]">
-                            {item.quantity}x {item.productName} ({item.producer})
-                          </span>
-                          <span className="font-medium text-[#1A1817]">
-                            {formatCurrency(item.price * item.quantity)}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="pt-2 border-t border-[#F0EAE1] flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px] text-[#786E64]">
-                      <div>
-                        <span>Destination: {order.customer.address}, {order.customer.city}</span>
-                      </div>
+              {/* Order Scope & Filters Bar */}
+              <div className="bg-[#FAF5EE] p-3 rounded-xl border border-[#E8DFD3] space-y-2.5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  {/* Scope Switcher: My Account Orders vs All Orders */}
+                  {hasMatchedOrders ? (
+                    <div className="inline-flex p-1 bg-white rounded-lg border border-[#DDD5CA] text-xs">
                       <button
-                        onClick={() => {
-                          setSearchedTrackingOrder(order);
-                          setTrackingNumberInput(order.orderNumber);
-                          setActiveTab('tracking');
-                        }}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-semibold rounded-md transition-colors text-xs self-start sm:self-auto cursor-pointer"
+                        type="button"
+                        onClick={() => setOrderScope('mine')}
+                        className={`px-3 py-1 rounded-md font-semibold transition-all cursor-pointer ${
+                          orderScope === 'mine'
+                            ? 'bg-[#1F1B18] text-white shadow-2xs'
+                            : 'text-[#685E55] hover:text-[#1F1B18]'
+                        }`}
                       >
-                        <Truck className="w-3.5 h-3.5" />
-                        <span>Track Status</span>
+                        {isBangla ? `আমার অ্যাকাউন্ট (${userMatchedOrders.length})` : `My Account (${userMatchedOrders.length})`}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setOrderScope('all')}
+                        className={`px-3 py-1 rounded-md font-semibold transition-all cursor-pointer ${
+                          orderScope === 'all'
+                            ? 'bg-[#1F1B18] text-white shadow-2xs'
+                            : 'text-[#685E55] hover:text-[#1F1B18]'
+                        }`}
+                      >
+                        {isBangla ? `সকল অর্ডার (${orders.length})` : `All Orders (${orders.length})`}
                       </button>
                     </div>
+                  ) : (
+                    <div className="text-xs text-[#7A7066] flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-[#D4AF37]" />
+                      <span>{isBangla ? `মোট ${orders.length}টি অর্ডার পাওয়া গেছে` : `Total ${orders.length} order(s) placed in store`}</span>
+                    </div>
+                  )}
+
+                  {/* Search orders */}
+                  <div className="relative flex-1 sm:max-w-xs">
+                    <Search className="w-3.5 h-3.5 text-[#8C8075] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type="text"
+                      placeholder={isBangla ? 'অর্ডার বা পণ্যের নাম খুঁজুন...' : 'Search by order # or product...'}
+                      value={orderSearchText}
+                      onChange={(e) => setOrderSearchText(e.target.value)}
+                      className="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-[#DDD5CA] rounded-lg focus:outline-none focus:border-[#C5A880] text-[#1A1817]"
+                    />
                   </div>
-                ))
+                </div>
+
+                {/* Status Filter Pills */}
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px]">
+                  <span className="text-[#8C8075] font-semibold text-[10px] uppercase tracking-wider shrink-0 mr-1 flex items-center gap-1">
+                    <Filter className="w-3 h-3 text-[#8C6B3E]" />
+                    <span>{isBangla ? 'অবস্থা:' : 'Status:'}</span>
+                  </span>
+                  {[
+                    { key: 'all', label: isBangla ? 'সকল' : 'All' },
+                    { key: 'Pending', label: isBangla ? 'অপেক্ষমান' : 'Pending' },
+                    { key: 'Confirmed', label: isBangla ? 'নিশ্চিত' : 'Confirmed' },
+                    { key: 'Shipped', label: isBangla ? 'প্রেরিত' : 'Shipped' },
+                    { key: 'Delivered', label: isBangla ? 'সম্পন্ন' : 'Delivered' },
+                  ].map((tab) => (
+                    <button
+                      key={tab.key}
+                      onClick={() => setOrderFilterStatus(tab.key)}
+                      className={`px-2.5 py-1 rounded-md transition-all whitespace-nowrap cursor-pointer ${
+                        orderFilterStatus === tab.key
+                          ? 'bg-[#1F1B18] text-white font-semibold shadow-2xs'
+                          : 'bg-white hover:bg-[#F0EAE1] text-[#5A5148] border border-[#E0D7CC]'
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Orders List */}
+              {filteredOrders.length === 0 ? (
+                <div className="p-8 bg-white border border-[#E8DFD3] rounded-xl text-center text-[#736B63] space-y-3">
+                  <Package className="w-10 h-10 mx-auto text-[#B8ADA2]" />
+                  <p className="font-serif-luxury text-base text-[#1A1817]">
+                    {orders.length === 0 
+                      ? (isBangla ? 'এখনও কোনো অর্ডার করা হয়নি' : 'No Orders Placed Yet')
+                      : (isBangla ? 'কোনো অর্ডার মিলছে না' : 'No Matching Orders Found')}
+                  </p>
+                  <p className="text-xs text-[#8C8075] max-w-sm mx-auto">
+                    {orders.length === 0
+                      ? (isBangla ? 'আপনার পছন্দের এশিয়ান প্রসাধনী অর্ডার করুন, এখানে লাইভ ট্র্যাকিং সহ বিস্তারিত দেখতে পাবেন।' : 'Customer orders placed through our checkout will appear here with live tracking, item breakdowns, and status.')
+                      : (isBangla ? 'অনুসন্ধান বা ফিল্টার পরিবর্তন করে পুনরায় চেষ্টা করুন।' : 'Try clearing your search query or adjusting status filter.')}
+                  </p>
+                  <div className="flex items-center justify-center gap-2 pt-1">
+                    {orders.length > 0 && orderFilterStatus !== 'all' && (
+                      <button
+                        onClick={() => {
+                          setOrderFilterStatus('all');
+                          setOrderSearchText('');
+                        }}
+                        className="px-3 py-1.5 bg-[#FAF5EE] hover:bg-[#F0E6D8] border border-[#DDD3C7] text-[#1F1B18] text-xs font-semibold rounded-lg transition-colors cursor-pointer"
+                      >
+                        {isBangla ? 'ফিল্টার মুছুন' : 'Clear Filters'}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setActiveTab('tracking')}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#1F1B18] hover:bg-[#38312B] text-white text-xs font-semibold rounded-xl transition-all cursor-pointer"
+                    >
+                      <Truck className="w-3.5 h-3.5 text-[#D4AF37]" />
+                      <span>{isBangla ? 'ট্র্যাকিং নম্বর দিয়ে ট্র্যাক করুন' : 'Track Order by Number'}</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                filteredOrders.map((order) => {
+                  const statusInfo = getStatusBadge(order.status);
+                  const stepIdx = getStatusStepIndex(order.status);
+                  const isCopied = copiedOrderRef === order.orderNumber;
+
+                  return (
+                    <div 
+                      key={order.id} 
+                      className="bg-white border border-[#E8DFD3] rounded-xl p-4 sm:p-5 shadow-2xs space-y-4 transition-all hover:border-[#D4AF37]/50"
+                    >
+                      {/* Order Card Header */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-[#F0EAE1] gap-2">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] uppercase font-bold text-[#8C8075] tracking-wider">
+                              {isBangla ? 'অর্ডার নম্বর:' : 'Order Ref:'}
+                            </span>
+                            <span className="font-mono text-sm font-bold text-[#1A1817] bg-[#FAF5EE] px-2 py-0.5 rounded border border-[#E8DFD3]">
+                              {order.orderNumber}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleCopyOrderRef(order.orderNumber)}
+                              className="p-1 hover:bg-[#F2ECE4] rounded text-[#8C8075] hover:text-[#1A1817] transition-colors cursor-pointer"
+                              title={isBangla ? 'অর্ডার নম্বর কপি করুন' : 'Copy Order Number'}
+                            >
+                              {isCopied ? (
+                                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                              ) : (
+                                <Copy className="w-3.5 h-3.5" />
+                              )}
+                            </button>
+                          </div>
+                          <p className="text-[11px] text-[#7A7169] flex items-center gap-1.5">
+                            <Clock className="w-3 h-3 text-[#A3978B]" />
+                            <span>
+                              {new Date(order.createdAt).toLocaleDateString(language === 'bn' ? 'bn-BD' : 'en-US', {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                          </p>
+                        </div>
+
+                        {/* Status Badge & Total Amount */}
+                        <div className="flex items-center gap-3 self-start sm:self-auto">
+                          <div className={`px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 border ${statusInfo.bg}`}>
+                            <span className={`w-2 h-2 rounded-full ${statusInfo.dot}`} />
+                            <span>{statusInfo.label}</span>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-[10px] text-[#8C8075] uppercase block font-semibold">
+                              {isBangla ? 'সর্বমোট' : 'Total'}
+                            </span>
+                            <span className="text-base font-bold text-[#1A1817] font-serif-luxury">
+                              {formatCurrency(order.total)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Visual Order Status Progression Pipeline */}
+                      <div className="bg-[#FAF8F5] p-2.5 rounded-lg border border-[#EDE5DB]">
+                        <div className="grid grid-cols-4 gap-1 sm:gap-2 text-[10px] text-center">
+                          <div className={`p-1.5 rounded-lg border flex flex-col items-center gap-1 ${
+                            stepIdx >= 1 ? 'bg-emerald-50/80 border-emerald-200 text-emerald-900 font-semibold' : 'bg-gray-50 border-gray-200 text-gray-400'
+                          }`}>
+                            <span className="w-4 h-4 rounded-full flex items-center justify-center text-[9px] bg-emerald-600 text-white font-bold">✓</span>
+                            <span>{isBangla ? '১. গ্রহণ' : '1. Placed'}</span>
+                          </div>
+                          <div className={`p-1.5 rounded-lg border flex flex-col items-center gap-1 ${
+                            stepIdx >= 2 ? 'bg-emerald-50/80 border-emerald-200 text-emerald-900 font-semibold' : 'bg-gray-50 border-gray-200 text-gray-400'
+                          }`}>
+                            <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold ${
+                              stepIdx >= 2 ? 'bg-emerald-600 text-white' : 'bg-gray-200 text-gray-500'
+                            }`}>{stepIdx >= 2 ? '✓' : '2'}</span>
+                            <span>{isBangla ? '২. নিশ্চিত' : '2. Confirmed'}</span>
+                          </div>
+                          <div className={`p-1.5 rounded-lg border flex flex-col items-center gap-1 ${
+                            stepIdx >= 3 ? 'bg-emerald-50/80 border-emerald-200 text-emerald-900 font-semibold' : 'bg-gray-50 border-gray-200 text-gray-400'
+                          }`}>
+                            <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold ${
+                              stepIdx >= 3 ? 'bg-emerald-600 text-white' : 'bg-gray-200 text-gray-500'
+                            }`}>{stepIdx >= 3 ? '✓' : '3'}</span>
+                            <span>{isBangla ? '৩. প্রেরিত' : '3. Shipped'}</span>
+                          </div>
+                          <div className={`p-1.5 rounded-lg border flex flex-col items-center gap-1 ${
+                            stepIdx >= 4 ? 'bg-emerald-50/80 border-emerald-200 text-emerald-900 font-semibold' : 'bg-gray-50 border-gray-200 text-gray-400'
+                          }`}>
+                            <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold ${
+                              stepIdx >= 4 ? 'bg-emerald-600 text-white' : 'bg-gray-200 text-gray-500'
+                            }`}>{stepIdx >= 4 ? '✓' : '4'}</span>
+                            <span>{isBangla ? '৪. সম্পন্ন' : '4. Delivered'}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Purchased Items List */}
+                      <div className="space-y-2">
+                        <span className="text-[10px] uppercase font-bold tracking-wider text-[#8C8075] block">
+                          {isBangla ? `অর্ডারের পণ্যসমূহ (${order.items.length}টি)` : `Ordered Formulations (${order.items.length} items)`}
+                        </span>
+                        <div className="space-y-2 divide-y divide-[#F5EFE9]">
+                          {order.items.map((item, idx) => (
+                            <div key={idx} className="pt-2 first:pt-0 flex items-center justify-between gap-3 text-xs">
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div className="w-11 h-11 rounded-lg bg-[#FAF5EE] border border-[#E8DFD3] overflow-hidden shrink-0 flex items-center justify-center">
+                                  {item.image ? (
+                                    <img src={item.image} alt={item.productName} className="w-full h-full object-cover" />
+                                  ) : (
+                                    <Sparkles className="w-4 h-4 text-[#8C6B3E]" />
+                                  )}
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="font-medium text-[#1A1817] truncate">{item.productName}</p>
+                                  <div className="flex items-center gap-2 text-[11px] text-[#786E64] mt-0.5">
+                                    <span className="bg-[#FAF2E6] text-[#7A5B28] px-1.5 py-0.2 rounded font-semibold text-[10px]">
+                                      {item.producer}
+                                    </span>
+                                    <span>
+                                      {item.quantity} × {formatCurrency(item.price)}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="text-right shrink-0">
+                                <span className="font-semibold text-[#1A1817]">
+                                  {formatCurrency(item.price * item.quantity)}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Financial Breakdown & Delivery Summary */}
+                      <div className="pt-3 border-t border-[#F0EAE1] bg-[#FAF8F5] p-3 rounded-xl space-y-2 text-xs">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[11px] text-[#6E645A]">
+                          <div>
+                            <p className="font-semibold text-[#1A1817] mb-0.5 flex items-center gap-1">
+                              <MapPin className="w-3 h-3 text-[#D4AF37]" />
+                              <span>{isBangla ? 'ডেলিভারি গন্তব্য:' : 'Shipping Address:'}</span>
+                            </p>
+                            <p className="text-[#4A423A]">
+                              {order.customer.fullName} • {order.customer.phone}
+                            </p>
+                            <p className="text-[#786E64]">
+                              {order.customer.address}, {order.customer.city}
+                            </p>
+                          </div>
+
+                          <div className="sm:text-right space-y-0.5">
+                            <div className="flex justify-between sm:justify-end gap-3 text-[#786E64]">
+                              <span>{isBangla ? 'সাবটোটাল:' : 'Subtotal:'}</span>
+                              <span className="font-medium text-[#1A1817]">{formatCurrency(order.subtotal || order.total)}</span>
+                            </div>
+                            {order.discountAmount > 0 && (
+                              <div className="flex justify-between sm:justify-end gap-3 text-emerald-700">
+                                <span>{isBangla ? `ছাড় (${order.appliedCode || 'প্রোমো'}):` : `Discount (${order.appliedCode || 'Promo'}):`}</span>
+                                <span>-{formatCurrency(order.discountAmount)}</span>
+                              </div>
+                            )}
+                            <div className="flex justify-between sm:justify-end gap-3 text-[#786E64]">
+                              <span>{isBangla ? 'ডেলিভারি চার্জ:' : 'Shipping Fee:'}</span>
+                              <span className="font-medium text-[#1A1817]">
+                                {order.shippingFee === 0 
+                                  ? (isBangla ? 'ফ্রি' : 'Complimentary') 
+                                  : formatCurrency(order.shippingFee)}
+                              </span>
+                            </div>
+                            <div className="flex justify-between sm:justify-end gap-3 pt-1 border-t border-[#E8DFD3] font-bold text-sm text-[#1A1817]">
+                              <span>{isBangla ? 'মোট প্রদেয়:' : 'Total Amount:'}</span>
+                              <span className="text-[#8C6B3E] font-serif-luxury">{formatCurrency(order.total)}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Logistics Carrier and Action buttons */}
+                        <div className="pt-2 border-t border-[#EDE5DB] flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <div className="text-[11px] text-[#786E64] flex items-center gap-2">
+                            <span className="font-semibold text-[#1A1817] flex items-center gap-1">
+                              <Truck className="w-3.5 h-3.5 text-[#8C6B3E]" />
+                              <span>{order.carrier || 'CJ Logistics / Hanghzou Air Express'}</span>
+                            </span>
+                            {order.trackingNumber && (
+                              <span className="font-mono text-[#5A5148] bg-white px-1.5 py-0.5 rounded border border-[#DDD5CA]">
+                                {order.trackingNumber}
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-2 self-start sm:self-auto">
+                            <button
+                              id={`track-order-btn-${order.id}`}
+                              onClick={() => {
+                                setSearchedTrackingOrder(order);
+                                setTrackingNumberInput(order.orderNumber);
+                                setActiveTab('tracking');
+                              }}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#1F1B18] hover:bg-[#38312B] text-white font-semibold rounded-lg transition-colors text-xs cursor-pointer shadow-2xs"
+                            >
+                              <Truck className="w-3.5 h-3.5 text-[#D4AF37]" />
+                              <span>{isBangla ? 'লাইভ ট্র্যাক করুন' : 'Track Status'}</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
               )}
             </div>
           )}

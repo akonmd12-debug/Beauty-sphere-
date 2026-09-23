@@ -65,6 +65,7 @@ import {
   saveReviewToFirestore,
   deleteReviewFromFirestore
 } from './services/firebase';
+import { triggerOrderNotification } from './utils/notificationService';
 import { Navbar } from './components/Navbar';
 import { HeroBanner } from './components/HeroBanner';
 import { ProductCard } from './components/ProductCard';
@@ -450,10 +451,20 @@ export default function App() {
       setIsAdminLoginModalOpen(true);
       return;
     }
+
+    const targetOrder = orders.find((o) => o.id === orderId);
+    let mockAlertNotice = '';
+
+    if (targetOrder && (newStatus === 'Shipped' || newStatus === 'Dispatched' || newStatus === 'Delivered')) {
+      const updatedOrder = { ...targetOrder, status: newStatus };
+      const notification = triggerOrderNotification(updatedOrder, newStatus);
+      mockAlertNotice = ` • 📧 Customer email alert sent to ${notification.recipientEmail}`;
+    }
+
     setOrders((prev) =>
       prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o))
     );
-    showToast(`Order status updated to ${newStatus}`);
+    showToast(`Order status updated to ${newStatus}${mockAlertNotice}`);
 
     // Persist to live Firestore so all devices see the updated status
     try {

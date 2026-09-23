@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Sparkles, Wind, EyeOff, Check } from 'lucide-react';
+import { Sparkles, Wind, EyeOff, Check, Globe } from 'lucide-react';
+import { useLanguage } from '../context/LanguageContext';
 
 export type SakuraIntensity = 'gentle' | 'shower' | 'off';
 
@@ -61,6 +62,7 @@ const SAKURA_PALETTES = [
 ];
 
 export const SakuraBloomBackground: React.FC = () => {
+  const { language, setLanguage, t } = useLanguage();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [intensity, setIntensity] = useState<SakuraIntensity>(() => {
     if (typeof window !== 'undefined') {
@@ -403,21 +405,21 @@ export const SakuraBloomBackground: React.FC = () => {
         aria-hidden="true"
       />
 
-      {/* Sakura Bloom Ambient Floating Toggle Pill */}
-      <div className="fixed bottom-5 left-5 z-40">
+      {/* Sakura Bloom Ambient Floating Toggle Pill - Positioned at Right Side */}
+      <div className="fixed bottom-5 right-5 z-40">
         <div className="relative">
           {/* Main Toggle Button */}
           <button
             id="sakura-breeze-toggle-btn"
             onClick={() => setShowControls((prev) => !prev)}
-            className="group flex items-center gap-2 px-3 py-1.5 bg-[#FAF8F5]/90 hover:bg-[#FAF8F5] text-[#332A24] backdrop-blur-md border border-[#E5D7CA] hover:border-[#D4AF37] rounded-full shadow-sm hover:shadow-md transition-all text-xs font-medium"
-            title="Sakura Bloom Animation Settings"
+            className="group flex items-center gap-2 px-3.5 py-1.5 bg-[#FAF8F5]/95 hover:bg-[#FAF8F5] text-[#332A24] backdrop-blur-md border border-[#E5D7CA] hover:border-[#D4AF37] rounded-full shadow-md hover:shadow-lg transition-all text-xs font-medium cursor-pointer"
+            title={t('sakura.title', 'Sakura Bloom Animation Settings')}
           >
             <span className="text-sm transition-transform group-hover:scale-125 inline-block">
-              {intensity === 'off' ? '🌸' : '🌸'}
+              🌸
             </span>
             <span className="font-serif-luxury tracking-wider text-[11px] text-[#4A3B32]">
-              Sakura Bloom
+              {t('sakura.title', 'Sakura Bloom')}
             </span>
             <span
               className={`w-1.5 h-1.5 rounded-full ${
@@ -434,11 +436,11 @@ export const SakuraBloomBackground: React.FC = () => {
           {showControls && (
             <div 
               id="sakura-controls-menu"
-              className="absolute bottom-10 left-0 mb-2 w-52 bg-white/95 backdrop-blur-md rounded-2xl p-2.5 border border-[#E8DFD5] shadow-xl text-xs space-y-1 animate-fadeIn"
+              className="absolute bottom-11 right-0 mb-2 w-56 bg-white/98 backdrop-blur-md rounded-2xl p-2.5 border border-[#E8DFD5] shadow-2xl text-xs space-y-1 animate-fadeIn z-50"
             >
               <div className="px-2.5 py-1.5 border-b border-[#F0EAE1] flex items-center justify-between">
                 <span className="text-[10px] uppercase font-bold tracking-wider text-[#8C6B3E]">
-                  Sakura Atmosphere
+                  {t('sakura.atmosphere', 'Sakura Atmosphere')}
                 </span>
                 <span className="text-xs">🌸</span>
               </div>
@@ -446,7 +448,7 @@ export const SakuraBloomBackground: React.FC = () => {
               {/* Gentle Mode */}
               <button
                 onClick={() => handleSetIntensity('gentle')}
-                className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl transition-colors text-left ${
+                className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl transition-colors text-left cursor-pointer ${
                   intensity === 'gentle'
                     ? 'bg-[#FAF5EE] text-[#1F1B18] font-semibold border border-[#E2D5C4]'
                     : 'text-[#5C534B] hover:bg-[#FAF8F5]'
@@ -455,8 +457,8 @@ export const SakuraBloomBackground: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <span className="text-sm">🍃</span>
                   <div>
-                    <p className="text-xs leading-none">Gentle Breeze</p>
-                    <p className="text-[10px] text-[#8C8075] mt-0.5">Ethereal soft petal drift</p>
+                    <p className="text-xs leading-none">{t('sakura.gentle', 'Gentle Breeze')}</p>
+                    <p className="text-[10px] text-[#8C8075] mt-0.5">{t('sakura.gentle_desc', 'Ethereal soft petal drift')}</p>
                   </div>
                 </div>
                 {intensity === 'gentle' && <Check className="w-3.5 h-3.5 text-[#D4AF37]" />}
@@ -465,7 +467,7 @@ export const SakuraBloomBackground: React.FC = () => {
               {/* Spring Shower Mode */}
               <button
                 onClick={() => handleSetIntensity('shower')}
-                className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl transition-colors text-left ${
+                className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl transition-colors text-left cursor-pointer ${
                   intensity === 'shower'
                     ? 'bg-[#FAF5EE] text-[#1F1B18] font-semibold border border-[#E2D5C4]'
                     : 'text-[#5C534B] hover:bg-[#FAF8F5]'
@@ -474,8 +476,8 @@ export const SakuraBloomBackground: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <span className="text-sm">🌸</span>
                   <div>
-                    <p className="text-xs leading-none">Blossom Shower</p>
-                    <p className="text-[10px] text-[#8C8075] mt-0.5">Full spring bloom rain</p>
+                    <p className="text-xs leading-none">{t('sakura.shower', 'Blossom Shower')}</p>
+                    <p className="text-[10px] text-[#8C8075] mt-0.5">{t('sakura.shower_desc', 'Full spring bloom rain')}</p>
                   </div>
                 </div>
                 {intensity === 'shower' && <Check className="w-3.5 h-3.5 text-[#D4AF37]" />}
@@ -484,7 +486,7 @@ export const SakuraBloomBackground: React.FC = () => {
               {/* Pause / Off Mode */}
               <button
                 onClick={() => handleSetIntensity('off')}
-                className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl transition-colors text-left ${
+                className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl transition-colors text-left cursor-pointer ${
                   intensity === 'off'
                     ? 'bg-[#FAF5EE] text-[#1F1B18] font-semibold border border-[#E2D5C4]'
                     : 'text-[#5C534B] hover:bg-[#FAF8F5]'
@@ -493,12 +495,54 @@ export const SakuraBloomBackground: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <EyeOff className="w-3.5 h-3.5 text-[#8C8075]" />
                   <div>
-                    <p className="text-xs leading-none">Pause Bloom</p>
-                    <p className="text-[10px] text-[#8C8075] mt-0.5">Static minimal view</p>
+                    <p className="text-xs leading-none">{t('sakura.off', 'Pause Bloom')}</p>
+                    <p className="text-[10px] text-[#8C8075] mt-0.5">{t('sakura.off_desc', 'Static minimal view')}</p>
                   </div>
                 </div>
                 {intensity === 'off' && <Check className="w-3.5 h-3.5 text-[#8C8075]" />}
               </button>
+
+              {/* Language Change Option (English / Bangla) */}
+              <div className="pt-2 border-t border-[#F0EAE1]">
+                <div className="px-1 py-1 flex items-center justify-between">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-[#8C6B3E] flex items-center gap-1">
+                    <Globe className="w-3 h-3 text-[#D4AF37]" />
+                    <span>Language / ভাষা</span>
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-1.5 mt-1">
+                  <button
+                    onClick={() => {
+                      setLanguage('en');
+                      setToastText('Language: English');
+                      setShowToast(true);
+                      setTimeout(() => setShowToast(false), 2000);
+                    }}
+                    className={`py-1.5 px-2 rounded-lg text-xs font-medium text-center transition-all cursor-pointer ${
+                      language === 'en'
+                        ? 'bg-[#1F1B18] text-white font-bold shadow-xs'
+                        : 'bg-[#FAF5EE] text-[#5C534B] hover:bg-[#EFE7DC]'
+                    }`}
+                  >
+                    English (EN)
+                  </button>
+                  <button
+                    onClick={() => {
+                      setLanguage('bn');
+                      setToastText('ভাষা: বাংলা');
+                      setShowToast(true);
+                      setTimeout(() => setShowToast(false), 2000);
+                    }}
+                    className={`py-1.5 px-2 rounded-lg text-xs font-medium text-center transition-all cursor-pointer ${
+                      language === 'bn'
+                        ? 'bg-[#1F1B18] text-white font-bold shadow-xs'
+                        : 'bg-[#FAF5EE] text-[#5C534B] hover:bg-[#EFE7DC]'
+                    }`}
+                  >
+                    বাংলা (BN)
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -506,7 +550,7 @@ export const SakuraBloomBackground: React.FC = () => {
 
       {/* Temporary Toast feedback on mode change */}
       {showToast && (
-        <div className="fixed bottom-16 left-5 z-50 bg-[#1F1B18]/90 backdrop-blur-md text-[#FAF8F5] px-3.5 py-2 rounded-xl border border-[#3A322C] text-xs font-medium flex items-center gap-2 shadow-lg animate-fadeIn">
+        <div className="fixed bottom-16 right-5 z-50 bg-[#1F1B18]/90 backdrop-blur-md text-[#FAF8F5] px-3.5 py-2 rounded-xl border border-[#3A322C] text-xs font-medium flex items-center gap-2 shadow-lg animate-fadeIn">
           <span>🌸</span>
           <span>{toastText}</span>
         </div>

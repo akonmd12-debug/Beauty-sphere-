@@ -262,6 +262,65 @@ export function authenticateAdmin(identifier: string, plainPassword: string): Au
 }
 
 /**
+ * Strictly validates Administrator encrypted credentials on the server-side via /api/auth/login.
+ */
+export async function authenticateAdminAsync(identifier: string, plainPassword: string): Promise<AuthResult> {
+  const cleanId = (identifier || '').trim();
+  const cleanPass = (plainPassword || '').trim();
+
+  if (!cleanId) {
+    return {
+      success: false,
+      error: 'Please enter the administrator username or email.'
+    };
+  }
+
+  if (!cleanPass) {
+    return {
+      success: false,
+      error: 'Please enter the administrator password.'
+    };
+  }
+
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        identifier: cleanId,
+        password: cleanPass,
+        expectedRole: 'admin'
+      })
+    });
+
+    const data = await res.json();
+    if (res.ok && data.success) {
+      const user = findUserByIdentifier(cleanId) || INITIAL_DATABASE_USERS[0];
+      const updatedUser: AuthUser = {
+        ...user,
+        lastLoginAt: new Date().toISOString()
+      };
+      const allUsers = getDatabaseUsers().map((u) => (u.id === updatedUser.id ? updatedUser : u));
+      saveDatabaseUsers(allUsers);
+      createAndSaveSession(updatedUser);
+      return {
+        success: true,
+        user: updatedUser,
+        role: 'admin'
+      };
+    }
+
+    return {
+      success: false,
+      error: data.error || 'Server validation failed. Incorrect administrator credentials.'
+    };
+  } catch (netErr) {
+    console.warn('Server endpoint unreachable, falling back to local BCrypt validation:', netErr);
+    return authenticateAdmin(cleanId, cleanPass);
+  }
+}
+
+/**
  * Authenticate specifically as the Sole Merchant / Moderator role.
  * Only users with role === 'merchant_moderator' and matching bcrypt hash can log in.
  */
@@ -326,6 +385,65 @@ export function authenticateMerchantModerator(identifier: string, plainPassword:
     user: updatedUser,
     role: 'merchant_moderator'
   };
+}
+
+/**
+ * Strictly validates Sole Merchant / Moderator encrypted credentials on the server-side via /api/auth/login.
+ */
+export async function authenticateMerchantModeratorAsync(identifier: string, plainPassword: string): Promise<AuthResult> {
+  const cleanId = (identifier || '').trim();
+  const cleanPass = (plainPassword || '').trim();
+
+  if (!cleanId) {
+    return {
+      success: false,
+      error: 'Please enter the merchant/moderator username or email.'
+    };
+  }
+
+  if (!cleanPass) {
+    return {
+      success: false,
+      error: 'Please enter your merchant/moderator password.'
+    };
+  }
+
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        identifier: cleanId,
+        password: cleanPass,
+        expectedRole: 'merchant_moderator'
+      })
+    });
+
+    const data = await res.json();
+    if (res.ok && data.success) {
+      const user = findUserByIdentifier(cleanId) || INITIAL_DATABASE_USERS[1];
+      const updatedUser: AuthUser = {
+        ...user,
+        lastLoginAt: new Date().toISOString()
+      };
+      const allUsers = getDatabaseUsers().map((u) => (u.id === updatedUser.id ? updatedUser : u));
+      saveDatabaseUsers(allUsers);
+      createAndSaveSession(updatedUser);
+      return {
+        success: true,
+        user: updatedUser,
+        role: 'merchant_moderator'
+      };
+    }
+
+    return {
+      success: false,
+      error: data.error || 'Server validation failed. Incorrect merchant credentials.'
+    };
+  } catch (netErr) {
+    console.warn('Server endpoint unreachable, falling back to local BCrypt validation:', netErr);
+    return authenticateMerchantModerator(cleanId, cleanPass);
+  }
 }
 
 /**

@@ -49,9 +49,15 @@ import {
   Shield,
   Cpu,
   Cloud,
-  Wifi
+  Wifi,
+  Bell,
+  PackageCheck,
+  Inbox
 } from 'lucide-react';
-import { Product, Producer, OfferDiscount, Order, ProductCategory, UserProfile, ProductReview, SkinProfileOption, AuthUser, UserRole } from '../types';
+import { Product, Producer, OfferDiscount, Order, ProductCategory, UserProfile, ProductReview, SkinProfileOption, AuthUser, UserRole, MockEmailNotification } from '../types';
+import { MockEmailModal } from './MockEmailModal';
+import { MockEmailHistoryModal } from './MockEmailHistoryModal';
+import { triggerOrderNotification, getStoredMockEmails, saveStoredMockEmails } from '../utils/notificationService';
 import { 
   formatCurrency, 
   changeAdminPassword, 
@@ -437,7 +443,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   // Orders Dashboard filters, invoice & dispatch states
   const [orderSearchQuery, setOrderSearchQuery] = useState('');
-  const [orderStatusFilter, setOrderStatusFilter] = useState<'all' | 'Pending' | 'Confirmed' | 'Dispatched' | 'Delivered'>('all');
+  const [orderStatusFilter, setOrderStatusFilter] = useState<'all' | 'Pending' | 'Confirmed' | 'Dispatched' | 'Shipped' | 'Delivered'>('all');
   const [selectedOrderForInvoice, setSelectedOrderForInvoice] = useState<Order | null>(null);
   const [copiedEssentialOrderId, setCopiedEssentialOrderId] = useState<string | null>(null);
   const [copiedOrderDispatchId, setCopiedOrderDispatchId] = useState<string | null>(null);
@@ -446,6 +452,30 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [copiedSlipDelivery, setCopiedSlipDelivery] = useState(false);
   const [copiedSlipAddress, setCopiedSlipAddress] = useState(false);
   const [copiedSlipEssential, setCopiedSlipEssential] = useState(false);
+
+  // Mock Customer Email Notification Service States
+  const [previewEmailNotification, setPreviewEmailNotification] = useState<MockEmailNotification | null>(null);
+  const [mockEmailHistory, setMockEmailHistory] = useState<MockEmailNotification[]>(getStoredMockEmails());
+  const [showEmailHistoryModal, setShowEmailHistoryModal] = useState(false);
+
+  const handleStatusChangeWithNotification = (order: Order, newStatus: Order['status']) => {
+    onUpdateOrderStatus(order.id, newStatus);
+
+    if (newStatus === 'Shipped' || newStatus === 'Dispatched' || newStatus === 'Delivered') {
+      const notif = triggerOrderNotification(order, newStatus);
+      const updated = getStoredMockEmails();
+      setMockEmailHistory(updated);
+      setPreviewEmailNotification(notif);
+    }
+  };
+
+  const handleTriggerManualMockAlert = (order: Order, triggerStatus?: 'Shipped' | 'Delivered') => {
+    const statusToUse = triggerStatus || (order.status === 'Delivered' ? 'Delivered' : 'Shipped');
+    const notif = triggerOrderNotification(order, statusToUse);
+    const updated = getStoredMockEmails();
+    setMockEmailHistory(updated);
+    setPreviewEmailNotification(notif);
+  };
 
   const handleCopyEssentialOrderInfo = async (order: Order) => {
     const text = formatEssentialOrderInfo(order);
@@ -2225,6 +2255,40 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </div>
               </div>
 
+              {/* Mock Customer Notification Gateway Active Banner */}
+              <div className="bg-[#1F1B18] text-[#FAF8F5] p-3.5 sm:p-4 rounded-xl border border-[#3E342B] flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-[#D4AF37]/20 text-[#D4AF37] shrink-0">
+                    <Mail className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-white uppercase tracking-wider">
+                        Customer Alert Gateway (Mock SMTP)
+                      </span>
+                      <span className="text-[10px] bg-emerald-950 text-emerald-300 font-mono px-2 py-0.5 rounded-full border border-emerald-800 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                        Active Trigger
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-[#A89D91] mt-0.5">
+                      Automatically sends simulated luxury branded email notifications to customers whenever order status updates to <strong className="text-white font-semibold">'Shipped'</strong> or <strong className="text-white font-semibold">'Delivered'</strong>.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setShowEmailHistoryModal(true)}
+                    className="px-3 py-1.5 bg-[#2E2823] hover:bg-[#3D352E] text-white text-xs font-semibold rounded-lg border border-[#4D4238] flex items-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <Inbox className="w-3.5 h-3.5 text-[#D4AF37]" />
+                    <span>View Sent Logs ({mockEmailHistory.length})</span>
+                  </button>
+                </div>
+              </div>
+
               {/* Search & Filter Toolbar */}
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 bg-[#FAF8F5] p-3 rounded-xl border border-[#EAE3D8]">
                 <div className="relative flex-1">
@@ -2247,6 +2311,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     <option value="all">All Fulfillment Statuses</option>
                     <option value="Pending">Pending</option>
                     <option value="Confirmed">Confirmed</option>
+                    <option value="Shipped">Shipped</option>
                     <option value="Dispatched">Dispatched</option>
                     <option value="Delivered">Delivered</option>
                   </select>
@@ -2280,7 +2345,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {filteredAdminOrders.map((ord) => (
+                  {filteredAdminOrders.map((ord) => {
+                    const isShippedOrDelivered = ord.status === 'Shipped' || ord.status === 'Dispatched' || ord.status === 'Delivered';
+                    const hasEmailAlert = mockEmailHistory.some((m) => m.orderId === ord.id);
+
+                    return (
                     <div key={ord.id} className="bg-white border border-[#E5DDD2] rounded-xl p-5 shadow-2xs space-y-3">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[#F2EDE7]">
                         <div>
@@ -2292,15 +2361,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-3">
+                        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                           <span className="text-base font-bold font-mono text-[#1A1817]">{formatCurrency(ord.total)}</span>
+                          
                           <select
                             value={ord.status}
-                            onChange={(e) => onUpdateOrderStatus(ord.id, e.target.value as any)}
+                            onChange={(e) => handleStatusChangeWithNotification(ord, e.target.value as any)}
                             className={`py-1 px-2.5 text-xs font-bold rounded-lg border focus:outline-none ${
                               ord.status === 'Delivered'
                                 ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
-                                : ord.status === 'Dispatched'
+                                : ord.status === 'Shipped' || ord.status === 'Dispatched'
                                 ? 'bg-blue-50 text-blue-800 border-blue-300'
                                 : ord.status === 'Confirmed'
                                 ? 'bg-purple-50 text-purple-800 border-purple-300'
@@ -2309,9 +2379,37 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           >
                             <option value="Pending">Pending</option>
                             <option value="Confirmed">Confirmed</option>
-                            <option value="Dispatched">Dispatched</option>
-                            <option value="Delivered">Delivered</option>
+                            <option value="Shipped">Shipped (Email Alert)</option>
+                            <option value="Dispatched">Dispatched (Email Alert)</option>
+                            <option value="Delivered">Delivered (Email Alert)</option>
                           </select>
+
+                          {/* Email Notification Trigger & Preview Button */}
+                          {(isShippedOrDelivered || hasEmailAlert) ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const existing = mockEmailHistory.find((m) => m.orderId === ord.id) || triggerOrderNotification(ord, (ord.status === 'Delivered' ? 'Delivered' : 'Shipped'));
+                                setPreviewEmailNotification(existing);
+                              }}
+                              className="py-1 px-2.5 bg-blue-50 hover:bg-blue-100 text-blue-900 text-xs font-semibold rounded-lg border border-blue-200 flex items-center gap-1.5 transition-colors cursor-pointer"
+                              title="Preview simulated email notification sent to customer"
+                            >
+                              <Mail className="w-3.5 h-3.5 text-blue-700" />
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                              <span>Email Alert Sent</span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleTriggerManualMockAlert(ord, 'Shipped')}
+                              className="py-1 px-2 bg-gray-50 hover:bg-gray-100 text-gray-700 text-xs font-medium rounded-lg border border-gray-200 flex items-center gap-1 transition-colors cursor-pointer"
+                              title="Test sending simulated customer email notification"
+                            >
+                              <Send className="w-3 h-3 text-[#8C6B3E]" />
+                              <span>Test Alert</span>
+                            </button>
+                          )}
                         </div>
                       </div>
 
@@ -2416,7 +2514,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         </div>
                       </div>
                     </div>
-                  ))}
+                  );
+                })}
                 </div>
               )}
             </div>
@@ -3635,14 +3734,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     <div className="flex items-center gap-3 text-[11px] text-[#7A7169]">
                       <button
                         type="button"
-                        onClick={() => setOldAdminPassword(getStoredAdminPassword())}
-                        className="text-[#8C6B3E] hover:underline font-medium cursor-pointer"
-                      >
-                        ⚡ Fill Current Password
-                      </button>
-                      <span>•</span>
-                      <button
-                        type="button"
                         onClick={() => {
                           saveStoredAdminPassword('00998877');
                           setAdminPasswordMsg({
@@ -4285,6 +4376,30 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
           </div>
         )}
+
+        {/* MODAL: MOCK EMAIL NOTIFICATION PREVIEW */}
+        <MockEmailModal
+          notification={previewEmailNotification}
+          onClose={() => setPreviewEmailNotification(null)}
+          onResend={(notif) => {
+            const refreshed = getStoredMockEmails();
+            setMockEmailHistory(refreshed);
+          }}
+        />
+
+        {/* MODAL: MOCK EMAIL HISTORY LOGS */}
+        <MockEmailHistoryModal
+          isOpen={showEmailHistoryModal}
+          onClose={() => setShowEmailHistoryModal(false)}
+          history={mockEmailHistory}
+          onSelectNotification={(notif) => {
+            setPreviewEmailNotification(notif);
+          }}
+          onClearHistory={() => {
+            saveStoredMockEmails([]);
+            setMockEmailHistory([]);
+          }}
+        />
       </div>
     </div>
   );

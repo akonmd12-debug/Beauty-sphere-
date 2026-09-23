@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Lock, ShieldCheck, KeyRound, ArrowLeft, UserCheck, AlertCircle, Sparkles, Check, Eye, EyeOff } from 'lucide-react';
-import { authenticateAdmin, getAdminUser } from '../utils/auth';
+import { Lock, ShieldCheck, KeyRound, ArrowLeft, AlertCircle, Check, Eye, EyeOff } from 'lucide-react';
+import { authenticateAdminAsync } from '../utils/auth';
 import { AuthUser, UserRole } from '../types';
 
 interface AdminPortalGateProps {
@@ -14,21 +14,19 @@ export const AdminPortalGate: React.FC<AdminPortalGateProps> = ({
   onNavigateHome,
   onNavigateMerchant,
 }) => {
-  const currentAdmin = getAdminUser();
-  const [identifier, setIdentifier] = useState(currentAdmin?.username || 'akonmd12@gmail.com');
-  const [password, setPassword] = useState(currentAdmin?.passwordChangedAt ? '' : '00998877');
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
-  const [copiedQuick, setCopiedQuick] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
     setIsVerifying(true);
 
-    setTimeout(() => {
-      const res = authenticateAdmin(identifier, password);
+    try {
+      const res = await authenticateAdminAsync(identifier, password);
       setIsVerifying(false);
 
       if (res.success && res.user && res.role) {
@@ -36,20 +34,9 @@ export const AdminPortalGate: React.FC<AdminPortalGateProps> = ({
       } else {
         setErrorMessage(res.error || 'Authentication failed. Only authorized Master Administrator can log in.');
       }
-    }, 250);
-  };
-
-  const handleQuickFill = () => {
-    const admin = getAdminUser();
-    setIdentifier(admin?.username || 'akonmd12@gmail.com');
-    if (admin?.passwordChangedAt) {
-      setPassword('');
-      setCopiedQuick(true);
-      setTimeout(() => setCopiedQuick(false), 3000);
-    } else {
-      setPassword('00998877');
-      setCopiedQuick(true);
-      setTimeout(() => setCopiedQuick(false), 2000);
+    } catch (err: any) {
+      setIsVerifying(false);
+      setErrorMessage(err?.message || 'Server authentication error occurred.');
     }
   };
 
@@ -58,7 +45,7 @@ export const AdminPortalGate: React.FC<AdminPortalGateProps> = ({
       {/* Background Ambience */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-[#382E25]/40 via-transparent to-transparent pointer-events-none"></div>
 
-      {/* Secret Route Identification Banner */}
+      {/* Route Identification Banner */}
       <div className="max-w-md w-full mb-4 flex items-center justify-between text-xs text-[#A89D91]">
         <button
           onClick={onNavigateHome}
@@ -67,8 +54,8 @@ export const AdminPortalGate: React.FC<AdminPortalGateProps> = ({
           <ArrowLeft className="w-3.5 h-3.5" />
           <span>Return to Storefront</span>
         </button>
-        <span className="font-mono text-[11px] px-2 py-0.5 bg-[#26201B] border border-[#3E342D] rounded text-amber-300 font-bold">
-          Secret Path: /admin-dashboard
+        <span className="font-mono text-[11px] px-2.5 py-0.5 bg-[#26201B] border border-[#3E342D] rounded text-amber-300 font-bold">
+          URL: /admin
         </span>
       </div>
 
@@ -86,40 +73,12 @@ export const AdminPortalGate: React.FC<AdminPortalGateProps> = ({
               <span>Master Administrator Access</span>
             </div>
             <h1 className="font-serif-luxury text-2xl font-bold tracking-wide text-white">
-              Admin Portal
+              Admin Portal Login
             </h1>
             <p className="text-xs text-[#A89D91] leading-relaxed">
-              Full control over website configuration, root store domain, user roles, and security credentials.
+              Authorized personnel only. Please sign in with your administrator credentials.
             </p>
           </div>
-        </div>
-
-        {/* Privileges Highlights & Privacy Warning */}
-        <div className="bg-[#241F1B] p-3.5 rounded-2xl border border-[#383028] text-xs space-y-2">
-          <div className="p-2 bg-amber-950/40 border border-amber-800/40 rounded-xl text-[11px] text-amber-200/90 leading-snug">
-            <strong className="text-amber-300 block font-semibold mb-0.5">
-              🔒 Private Restricted Zone — Boutique Owner Only
-            </strong>
-            This portal is strictly private. Public customers and store visitors have zero access to administrative records, server configurations, or financial summaries.
-          </div>
-
-          <span className="font-bold text-[10px] uppercase tracking-wider text-[#D4AF37] block pt-1">
-            Admin Authority Scope:
-          </span>
-          <ul className="space-y-1 text-[#C7BDB3] text-[11px]">
-            <li className="flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37]"></span>
-              <span>Root Domain & Storefront URL Configuration</span>
-            </li>
-            <li className="flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37]"></span>
-              <span>User Roles Management & BCrypt Password Encryption</span>
-            </li>
-            <li className="flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37]"></span>
-              <span>Full Product Inventory, Client Orders & Review Moderation</span>
-            </li>
-          </ul>
         </div>
 
         {/* Error Alert */}
@@ -130,34 +89,36 @@ export const AdminPortalGate: React.FC<AdminPortalGateProps> = ({
           </div>
         )}
 
-        {/* Login Form */}
+        {/* Login Form - Displays clean empty fields only */}
         <form onSubmit={handleLogin} className="space-y-4 text-xs">
           <div>
             <label className="block font-medium text-[#C7BDB3] mb-1">
-              Admin Identifier (Username or Email):
+              Email or Username:
             </label>
             <input
               type="text"
               required
+              id="admin-login-identifier"
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
-              placeholder="e.g. akonmd12@gmail.com"
-              className="w-full px-3.5 py-2.5 bg-[#241F1B] border border-[#3E342B] rounded-xl text-white focus:outline-none focus:ring-1 focus:ring-[#D4AF37] font-medium"
+              placeholder="Enter your email or username"
+              className="w-full px-3.5 py-2.5 bg-[#241F1B] border border-[#3E342B] rounded-xl text-white placeholder-[#786D62] focus:outline-none focus:ring-1 focus:ring-[#D4AF37] font-medium"
             />
           </div>
 
           <div>
             <label className="block font-medium text-[#C7BDB3] mb-1">
-              Master Admin Password:
+              Password:
             </label>
             <div className="relative">
               <input
                 type={showPassword ? 'text' : 'password'}
                 required
+                id="admin-login-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full px-3.5 py-2.5 bg-[#241F1B] border border-[#3E342B] rounded-xl text-white focus:outline-none focus:ring-1 focus:ring-[#D4AF37] font-mono pr-10"
+                placeholder="Enter your password"
+                className="w-full px-3.5 py-2.5 bg-[#241F1B] border border-[#3E342B] rounded-xl text-white placeholder-[#786D62] focus:outline-none focus:ring-1 focus:ring-[#D4AF37] font-mono pr-10"
               />
               <button
                 type="button"
@@ -170,30 +131,14 @@ export const AdminPortalGate: React.FC<AdminPortalGateProps> = ({
             </div>
           </div>
 
-          {/* Quick-Fill Helper */}
-          <div className="flex items-center justify-between pt-1">
-            <button
-              type="button"
-              onClick={handleQuickFill}
-              className="text-[11px] text-[#D4AF37] hover:underline flex items-center gap-1 cursor-pointer"
-            >
-              <Sparkles className="w-3 h-3" />
-              <span>
-                {copiedQuick
-                  ? (currentAdmin?.passwordChangedAt ? `Set to ${currentAdmin.username} (Enter your custom password)` : 'Credentials Applied!')
-                  : `Fill Current Admin (${currentAdmin?.username || 'akonmd12@gmail.com'})`}
-              </span>
-            </button>
-            <span className="text-[10px] text-[#8C8075] font-mono">BCrypt Blowfish</span>
-          </div>
-
           <button
             type="submit"
+            id="admin-login-submit-btn"
             disabled={isVerifying}
             className="w-full py-3 bg-[#D4AF37] hover:bg-[#C29E2F] text-black font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
           >
             <KeyRound className="w-4 h-4" />
-            <span>{isVerifying ? 'Verifying BCrypt Hash...' : 'Unlock Admin Portal'}</span>
+            <span>{isVerifying ? 'Authenticating...' : 'Sign In to Admin Portal'}</span>
           </button>
         </form>
 

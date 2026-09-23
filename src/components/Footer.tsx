@@ -387,16 +387,17 @@ export const Footer: React.FC<FooterProps> = ({
         </div>
 
         {/* Bottom Credits & Copyright 2026 to 2029 */}
-        <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-[11px] text-[#8C8075] gap-3">
+        <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-[11px] text-[#8C8075] gap-4">
           <p id="footer-copyright-text" className="text-center sm:text-left">
             © 2026 to 2029 BEAUTY SPHERE SHOP. All rights reserved. Sovereign Botanical Formulations.
           </p>
+
           <div className="flex flex-wrap items-center justify-center gap-4 text-[#8C8075]">
-            <button onClick={() => onOpenAccount('website-link')} className="hover:text-white transition-colors cursor-pointer">
+            <button onClick={() => onOpenAccount('website-link')} className="hover:text-white transition-colors cursor-pointer text-[#8C8075]">
               Platform Direct URL
             </button>
             <span>•</span>
-            <button onClick={() => onOpenAccount('profile')} className="hover:text-white transition-colors cursor-pointer">
+            <button onClick={() => onOpenAccount('profile')} className="hover:text-white transition-colors cursor-pointer text-[#8C8075]">
               Profile Settings
             </button>
             <span>•</span>

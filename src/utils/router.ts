@@ -7,8 +7,11 @@ export type AppRoute = 'storefront' | 'admin-dashboard' | 'merchant-login';
 
 export const ROUTES = {
   STOREFRONT: '/' as const,
+  ADMIN: '/admin' as const,
+  ADMIN_LOGIN: '/admin/login' as const,
   ADMIN_DASHBOARD: '/admin-dashboard' as const,
-  MERCHANT_LOGIN: '/merchant-login' as const,
+  MERCHANT: '/merchant' as const,
+  MERCHANT_LOGIN: '/merchant/login' as const,
   MERCHANT_PORTAL: '/merchant-portal' as const,
 };
 
@@ -22,39 +25,46 @@ export function parseCurrentRoute(): AppRoute {
   const hash = window.location.hash.toLowerCase().replace(/^#/, '');
   const search = window.location.search.toLowerCase();
   const searchParams = new URLSearchParams(search);
-  const routeParam = (searchParams.get('route') || searchParams.get('portal') || searchParams.get('p') || '').toLowerCase();
+  const routeParam = (searchParams.get('route') || searchParams.get('portal') || searchParams.get('p') || searchParams.get('view') || '').toLowerCase();
 
-  // Check secret admin route (via path, hash, or query parameter)
+  // Check Master Admin portal route (via path, hash, or query parameter)
   if (
-    pathname.includes('admin-dashboard') ||
-    hash.includes('admin-dashboard') ||
     pathname === '/admin' ||
-    hash === '/admin' ||
+    pathname === '/admin/' ||
+    pathname.startsWith('/admin/') ||
+    pathname.includes('admin-dashboard') ||
+    pathname.includes('admin-login') ||
     hash === 'admin' ||
-    routeParam === 'admin-dashboard' ||
+    hash === '/admin' ||
+    hash === 'admin/login' ||
+    hash.includes('admin-dashboard') ||
     routeParam === 'admin' ||
-    search.includes('route=admin-dashboard') ||
-    search.includes('route=admin')
+    routeParam === 'admin-dashboard' ||
+    routeParam === 'admin-login' ||
+    search.includes('route=admin') ||
+    search.includes('portal=admin')
   ) {
     return 'admin-dashboard';
   }
 
-  // Check sole merchant route (via path, hash, or query parameter)
+  // Check Sole Merchant / Moderator portal route (via path, hash, or query parameter)
   if (
-    pathname.includes('merchant-login') ||
-    hash.includes('merchant-login') ||
-    pathname.includes('merchant-portal') ||
-    hash.includes('merchant-portal') ||
-    pathname.includes('merchant-dashboard') ||
-    hash.includes('merchant-dashboard') ||
     pathname === '/merchant' ||
-    hash === '/merchant' ||
+    pathname === '/merchant/' ||
+    pathname.startsWith('/merchant/') ||
+    pathname.includes('merchant-login') ||
+    pathname.includes('merchant-portal') ||
+    pathname.includes('merchant-dashboard') ||
     hash === 'merchant' ||
-    hash === 'merchant-login' ||
-    routeParam === 'merchant-login' ||
+    hash === '/merchant' ||
+    hash === 'merchant/login' ||
+    hash.includes('merchant-login') ||
+    hash.includes('merchant-portal') ||
     routeParam === 'merchant' ||
-    search.includes('route=merchant-login') ||
-    search.includes('route=merchant')
+    routeParam === 'merchant-login' ||
+    routeParam === 'merchant-portal' ||
+    search.includes('route=merchant') ||
+    search.includes('portal=merchant')
   ) {
     return 'merchant-login';
   }
@@ -69,8 +79,8 @@ export function navigateToRoute(route: AppRoute): void {
   if (typeof window === 'undefined') return;
 
   const targetPath = 
-    route === 'admin-dashboard' ? '/admin-dashboard' :
-    route === 'merchant-login' ? '/merchant-login' : '/';
+    route === 'admin-dashboard' ? '/admin' :
+    route === 'merchant-login' ? '/merchant' : '/';
 
   try {
     // Update browser URL via pushState
@@ -89,10 +99,26 @@ export function navigateToRoute(route: AppRoute): void {
 export function getRoutePath(route: AppRoute): string {
   switch (route) {
     case 'admin-dashboard':
-      return '/admin-dashboard';
+      return '/admin';
     case 'merchant-login':
-      return '/merchant-login';
+      return '/merchant';
     default:
       return '/';
   }
+}
+
+/**
+ * Get full accessible URL for the Admin Portal login page
+ */
+export function getAdminPortalUrl(): string {
+  if (typeof window === 'undefined') return 'https://beautysphereshop.com/admin';
+  return `${window.location.origin}/admin`;
+}
+
+/**
+ * Get full accessible URL for the Merchant Portal login page
+ */
+export function getMerchantPortalUrl(): string {
+  if (typeof window === 'undefined') return 'https://beautysphereshop.com/merchant';
+  return `${window.location.origin}/merchant`;
 }

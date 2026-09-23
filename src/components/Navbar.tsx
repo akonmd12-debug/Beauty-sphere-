@@ -11,10 +11,12 @@ import {
   Sparkles, 
   ExternalLink,
   Package,
-  ArrowRight
+  ArrowRight,
+  Globe
 } from 'lucide-react';
 import { ProductCategory } from '../types';
 import { AppRoute } from '../utils/router';
+import { useLanguage } from '../context/LanguageContext';
 
 interface NavbarProps {
   cartCount: number;
@@ -45,6 +47,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   activeAnnouncement = "Complimentary White-Glove Delivery on orders over ৳1,500 • Authentic Seoul & Hangzhou Luxury Imports • Code: KBEAUTY15",
   onNavigateRoute,
 }) => {
+  const { language, setLanguage, toggleLanguage, t, isBangla } = useLanguage();
   const [copied, setCopied] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -58,15 +61,15 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   const navCategories = [
-    { label: 'All Collections', value: 'all' },
-    { label: '🇰🇷 K-Beauty (Korea)', value: 'korea' },
-    { label: '🇨🇳 C-Beauty (China)', value: 'china' },
-    { label: 'Essences & Serums', value: 'Essences & Serums' },
-    { label: 'Moisture Creams', value: 'Moisture & Barrier Creams' },
-    { label: 'Cleansers & Balms', value: 'Cleansers & Balms' },
-    { label: 'Sun Care & Cushions', value: 'Sun Care & Cushions' },
-    { label: 'Sheet Masks', value: 'Sheet Masks & Treatments' },
-    { label: 'Artisan Houses', value: 'producers' },
+    { label: t('nav.all_collections', 'All Collections'), value: 'all' },
+    { label: t('nav.k_beauty', '🇰🇷 K-Beauty (Korea)'), value: 'korea' },
+    { label: t('nav.c_beauty', '🇨🇳 C-Beauty (China)'), value: 'china' },
+    { label: t('nav.essences', 'Essences & Serums'), value: 'Essences & Serums' },
+    { label: t('nav.creams', 'Moisture Creams'), value: 'Moisture & Barrier Creams' },
+    { label: t('nav.cleansers', 'Cleansers & Balms'), value: 'Cleansers & Balms' },
+    { label: t('nav.suncare', 'Sun Care & Cushions'), value: 'Sun Care & Cushions' },
+    { label: t('nav.masks', 'Sheet Masks'), value: 'Sheet Masks & Treatments' },
+    { label: t('nav.producers', 'Artisan Houses'), value: 'producers' },
   ];
 
   return (
@@ -76,7 +79,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="max-w-7xl mx-auto flex items-center justify-center text-center">
           <div className="flex items-center gap-2">
             <Sparkles className="w-3.5 h-3.5 text-[#D4AF37] shrink-0" />
-            <span className="font-light tracking-widest">{activeAnnouncement}</span>
+            <span className="font-light tracking-widest">{t('announcement.text', activeAnnouncement)}</span>
           </div>
         </div>
       </div>
@@ -95,7 +98,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               {mobileMenuOpen ? <X className="w-5 h-5 text-[#8C6B3E]" /> : <Menu className="w-5 h-5 text-[#8C6B3E]" />}
               <span className="text-xs uppercase tracking-wider font-semibold text-[#1A1817] hidden sm:inline">
-                3-Step Door
+                {t('nav.door', '3-Step Door')}
               </span>
             </button>
           </div>
@@ -107,7 +110,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <input
                 id="search-products-input"
                 type="text"
-                placeholder="Search Ginseng, Snail Mucin, Cica, Florasis, Pearl..."
+                placeholder={t('nav.search.placeholder', 'Search Ginseng, Snail Mucin, Cica, Florasis, Pearl...')}
                 value={searchQuery}
                 onChange={(e) => onSearchChange(e.target.value)}
                 className="w-full pl-9 pr-4 py-1.5 text-xs bg-[#F2EDE7] border border-transparent rounded-full focus:outline-none focus:border-[#C5A880] focus:bg-white transition-all text-[#2B2623] placeholder-[#8C827A]"
@@ -142,13 +145,29 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Right Action Icons & Dashboard Controls */}
           <div className="flex items-center justify-end flex-1 gap-1 sm:gap-2">
+            {/* Language Switcher Option (English & Bangla) */}
+            <div className="flex items-center">
+              <button
+                id="header-language-toggle-btn"
+                onClick={toggleLanguage}
+                className="group flex items-center gap-1.5 px-2.5 py-1 sm:px-3 sm:py-1.5 bg-[#FAF8F5] hover:bg-[#F2EDE7] border border-[#DDD5CA] hover:border-[#D4AF37] rounded-full transition-all text-xs shadow-2xs cursor-pointer"
+                title={language === 'en' ? 'বাংলা ভাষায় পরিবর্তন করুন (Switch to Bangla)' : 'Switch to English'}
+                aria-label="Toggle language English or Bangla"
+              >
+                <Globe className="w-3.5 h-3.5 text-[#8C6B3E] transition-transform group-hover:rotate-12" />
+                <span className="font-semibold text-[11px] text-[#2B2623] tracking-wide">
+                  {language === 'en' ? 'বাংলা' : 'EN'}
+                </span>
+              </button>
+            </div>
+
             {/* Wishlist */}
             <button
               id="open-wishlist-btn"
               onClick={onOpenWishlist}
               className="relative p-2 text-[#2B2623] hover:text-[#C5A880] transition-colors"
               aria-label="Wishlist"
-              title="Saved Formulations"
+              title={t('nav.wishlist', 'Saved Formulations')}
             >
               <Heart className="w-5 h-5" />
               {wishlistCount > 0 && (
@@ -162,24 +181,28 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               id="open-user-account-btn"
               onClick={() => onOpenAccount('profile')}
-              className="p-2 text-[#2B2623] hover:text-[#C5A880] transition-colors flex items-center gap-1.5"
+              className="p-2 text-[#2B2623] hover:text-[#C5A880] transition-colors flex items-center gap-1.5 cursor-pointer"
               aria-label="Customer Account"
-              title="Customer Account & Instant Delivery Info"
+              title={t('nav.account', 'Customer Account & Instant Delivery Info')}
             >
               <User className="w-5 h-5" />
-              <span className="hidden xl:inline text-xs font-medium text-[#4A433E]">Account</span>
+              <span className="hidden xl:inline text-xs font-medium text-[#4A433E]">
+                {t('nav.account', 'Account')}
+              </span>
             </button>
 
             {/* Cart List Drawer Button (Buy So Many Products at Once) */}
             <button
               id="open-cart-drawer-btn"
               onClick={onOpenCart}
-              className="relative p-2 sm:px-3.5 bg-[#1F1B18] text-[#FAF8F5] hover:bg-[#342F2B] rounded-full transition-all shadow-sm flex items-center justify-center gap-1.5"
+              className="relative p-2 sm:px-3.5 bg-[#1F1B18] text-[#FAF8F5] hover:bg-[#342F2B] rounded-full transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
               aria-label="Cart List"
               title="View Cart List & Bulk Purchase All Products"
             >
               <ShoppingBag className="w-4 h-4 text-[#D4AF37]" />
-              <span className="hidden md:inline text-xs font-semibold tracking-wider">Cart List</span>
+              <span className="hidden md:inline text-xs font-semibold tracking-wider">
+                {t('nav.cart', 'Cart List')}
+              </span>
               {cartCount > 0 && (
                 <span className="w-5 h-5 bg-[#D4AF37] text-[#1F1B18] text-[11px] font-bold rounded-full flex items-center justify-center">
                   {cartCount}
@@ -196,7 +219,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <input
               id="mobile-sticky-search-input"
               type="text"
-              placeholder="Search Ginseng, Snail Mucin, Cica, Florasis, Pearl..."
+              placeholder={t('nav.search.placeholder', 'Search Ginseng, Snail Mucin, Cica, Florasis, Pearl...')}
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
               className="w-full pl-9 pr-8 py-1.5 text-xs bg-[#F2EDE7] border border-[#DDD5CA] rounded-full focus:outline-none focus:border-[#C5A880] focus:bg-white transition-all text-[#1A1817] placeholder-[#8C827A]"
